@@ -54,6 +54,7 @@ export interface IStorage {
   updateFinal(runId: string, final: Partial<InsertFinal>): Promise<Final>;
 
   // Artifacts
+  getArtifactByRunId(runId: string): Promise<Artifact | undefined>;
   getArtifactsByRunId(runId: string): Promise<Artifact[]>;
   getArtifactById(id: string): Promise<Artifact | undefined>;
   createArtifact(artifact: InsertArtifact): Promise<Artifact>;
@@ -188,6 +189,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Artifacts
+  async getArtifactByRunId(runId: string): Promise<Artifact | undefined> {
+    const artifacts = await db.select().from(schema.artifacts).where(eq(schema.artifacts.runId, runId));
+    return artifacts[0];
+  }
+
   async getArtifactsByRunId(runId: string): Promise<Artifact[]> {
     return db.select().from(schema.artifacts).where(eq(schema.artifacts.runId, runId));
   }

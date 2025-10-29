@@ -84,7 +84,7 @@ export default function Profile() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: InsertCandidate }) => {
       return await apiRequest(`/api/candidates/${id}`, {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify(data),
       });
     },

@@ -163,12 +163,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Fetch related data
-      const [candidate, jobPosting, draft, final, artifacts] = await Promise.all([
+      const [candidate, jobPosting, draft, final, artifact] = await Promise.all([
         storage.getCandidateById(run.candidateId),
         storage.getJobPostingById(run.jobPostingId),
         storage.getDraftByRunId(run.id),
         storage.getFinalByRunId(run.id),
-        storage.getArtifactsByRunId(run.id),
+        storage.getArtifactByRunId(run.id),
       ]);
 
       res.json({
@@ -177,7 +177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         jobPosting,
         draft,
         final,
-        artifacts,
+        artifact,
       });
     } catch (error) {
       console.error("Error fetching run:", error);
@@ -227,13 +227,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ===== DOCUMENT DOWNLOADS =====
 
-  // Download a specific document
-  app.get("/api/artifacts/:artifactId/download", isAuthenticated, async (req: any, res) => {
+  // Download a specific document (requires documentType query param: cv, cover-letter, or added-points)
+  app.get("/api/artifacts/:runId/download", isAuthenticated, async (req: any, res) => {
     try {
-      const artifact = await storage.getArtifactById(req.params.artifactId);
+      const documentType = req.query.type as string;
+      if (!documentType || !["cv", "cover-letter", "added-points"].includes(documentType)) {
+        return res.status(400).json({ error: "Invalid or missing document type. Use: cv, cover-letter, or added-points" });
+      }
+
+      const artifact = await storage.getArtifactByRunId(req.params.runId);
 
       if (!artifact) {
-        return res.status(404).json({ error: "Artifact not found" });
+        return res.status(404).json({ error: "Artifacts not found for this run" });
       }
 
       // Verify run ownership
@@ -242,13 +247,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      // Select the appropriate storage path based on document type
+      let storagePath: string;
+      switch (documentType) {
+        case "cv":
+          storagePath = artifact.cvPath;
+          break;
+        case "cover-letter":
+          storagePath = artifact.coverLetterPath;
+          break;
+        case "added-points":
+          storagePath = artifact.addedPointsPath;
+          break;
+        default:
+          return res.status(400).json({ error: "Invalid document type" });
+      }
+
       // Verify ACL access
-      if (!objectAcl.canAccess(req.user.claims.sub, artifact.storagePath)) {
+      if (!objectAcl.canAccess(req.user.claims.sub, storagePath)) {
         return res.status(403).json({ error: "Access denied" });
       }
 
       // Generate signed URL
-      const downloadUrl = await objectStorage.getSignedDownloadUrl(artifact.storagePath, 3600);
+      const downloadUrl = await objectStorage.getSignedDownloadUrl(storagePath, 3600);
       res.json({ url: downloadUrl });
     } catch (error) {
       console.error("Error generating download URL:", error);
@@ -353,27 +374,13 @@ async function processJobApplication(
       }),
     ]);
 
-    // Create artifact records
-    await Promise.all([
-      storage.createArtifact({
-        runId,
-        artifactType: "cv",
-        storagePath: cvPath,
-        filename: `cv_${jobPosting.company}_${jobPosting.role}.docx`,
-      }),
-      storage.createArtifact({
-        runId,
-        artifactType: "cover_letter",
-        storagePath: coverLetterPath,
-        filename: `cover_letter_${jobPosting.company}_${jobPosting.role}.docx`,
-      }),
-      storage.createArtifact({
-        runId,
-        artifactType: "enhancements",
-        storagePath: enhancementPath,
-        filename: `enhancements_${jobPosting.company}_${jobPosting.role}.docx`,
-      }),
-    ]);
+    // Create single artifact record with all three document paths
+    await storage.createArtifact({
+      runId,
+      cvPath,
+      coverLetterPath,
+      addedPointsPath: enhancementPath,
+    });
 
     // STAGE 6: Complete
     await storage.updateRunStatus(runId, "COMPLETED");

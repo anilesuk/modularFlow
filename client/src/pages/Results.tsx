@@ -15,60 +15,54 @@ export default function Results() {
   const [, params] = useRoute("/results/:runId");
   const runId = params?.runId;
 
-  const { data: run, isLoading: runLoading } = useQuery<Run>({
+  const { data: runData, isLoading: runLoading } = useQuery<Run & { 
+    draft?: Draft; 
+    final?: Final; 
+    artifact?: Artifact 
+  }>({
     queryKey: ["/api/runs", runId],
   });
 
-  const { data: draft } = useQuery<Draft>({
-    queryKey: ["/api/runs", runId, "draft"],
-    enabled: !!run && run.status === "COMPLETED",
-  });
-
-  const { data: final } = useQuery<Final>({
-    queryKey: ["/api/runs", runId, "final"],
-    enabled: !!run && run.status === "COMPLETED",
-  });
-
-  const { data: artifacts } = useQuery<Artifact>({
-    queryKey: ["/api/runs", runId, "artifacts"],
-    enabled: !!run && run.status === "COMPLETED",
-  });
+  const run = runData;
+  const draft = runData?.draft;
+  const final = runData?.final;
+  const artifact = runData?.artifact;
 
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  const handleDownload = async (type: "cv" | "cover-letter" | "added-points") => {
-    if (!artifacts) return;
+  const handleDownload = async (documentType: "cv" | "cover-letter" | "added-points") => {
+    if (!artifact || !run) return;
     
-    setDownloading(type);
+    // Map document types to filenames
+    const filenameMap = {
+      "cv": "Tailored-CV.docx",
+      "cover-letter": "Cover-Letter.docx",
+      "added-points": "Enhancement-Notes.docx",
+    };
+    
+    const filename = filenameMap[documentType];
+    
+    setDownloading(documentType);
     try {
-      let path = "";
-      let filename = "";
-      
-      switch (type) {
-        case "cv":
-          path = artifacts.cvPath;
-          filename = "Tailored-CV.docx";
-          break;
-        case "cover-letter":
-          path = artifacts.coverLetterPath;
-          filename = "Cover-Letter.docx";
-          break;
-        case "added-points":
-          path = artifacts.addedPointsPath;
-          filename = "Enhancement-Notes.docx";
-          break;
+      // Get signed download URL from backend
+      const response = await fetch(`/api/artifacts/${run.id}/download?type=${documentType}`);
+      if (!response.ok) {
+        throw new Error("Failed to get download URL");
       }
       
-      const response = await fetch(path);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const { url } = await response.json();
+      
+      // Download using signed URL
+      const fileResponse = await fetch(url);
+      const blob = await fileResponse.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = blobUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download failed:", error);
     } finally {
@@ -77,6 +71,7 @@ export default function Results() {
   };
 
   const handleDownloadAll = () => {
+    if (!artifact || !run) return;
     handleDownload("cv");
     setTimeout(() => handleDownload("cover-letter"), 500);
     setTimeout(() => handleDownload("added-points"), 1000);
