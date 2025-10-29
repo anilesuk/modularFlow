@@ -18,29 +18,67 @@ export class DocumentGenerationService {
       sections: [
         {
           children: [
-            // Contact Information
+            // Header (Contact Information)
             new Paragraph({
-              text: cv.contact.name,
+              text: cv.header.full_name,
               heading: HeadingLevel.HEADING_1,
               alignment: AlignmentType.CENTER,
             }),
             new Paragraph({
-              text: `${cv.contact.email} | ${cv.contact.phone} | ${cv.contact.location}`,
+              text: [
+                cv.header.city_region,
+                cv.header.phone,
+                cv.header.email,
+                cv.header.linkedin
+              ].filter(Boolean).join(" | "),
               alignment: AlignmentType.CENTER,
             }),
             new Paragraph({ text: "" }), // Spacing
 
-            // Professional Summary
+            // Headline
+            ...(cv.headline ? [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: cv.headline, bold: true }),
+                ],
+                alignment: AlignmentType.CENTER,
+              }),
+              new Paragraph({ text: "" }),
+            ] : []),
+
+            // Profile Summary
             new Paragraph({
               text: "Professional Summary",
               heading: HeadingLevel.HEADING_2,
             }),
             new Paragraph({
-              text: cv.summary,
+              text: cv.profile_summary,
             }),
             new Paragraph({ text: "" }),
 
-            // Experience
+            // Key Skills
+            new Paragraph({
+              text: "Key Skills",
+              heading: HeadingLevel.HEADING_2,
+            }),
+            new Paragraph({
+              text: cv.key_skills.join(" • "),
+            }),
+            new Paragraph({ text: "" }),
+
+            // Technical Skills (if present)
+            ...(cv.technical_skills ? [
+              new Paragraph({
+                text: "Technical Skills",
+                heading: HeadingLevel.HEADING_2,
+              }),
+              new Paragraph({
+                text: cv.technical_skills,
+              }),
+              new Paragraph({ text: "" }),
+            ] : []),
+
+            // Professional Experience
             new Paragraph({
               text: "Professional Experience",
               heading: HeadingLevel.HEADING_2,
@@ -48,53 +86,70 @@ export class DocumentGenerationService {
             ...cv.experience.flatMap(exp => [
               new Paragraph({
                 children: [
-                  new TextRun({ text: exp.role, bold: true }),
-                  new TextRun({ text: ` - ${exp.company}` }),
+                  new TextRun({ text: exp.title, bold: true }),
+                  new TextRun({ text: ` - ${exp.employer}` }),
                 ],
               }),
               new Paragraph({
-                children: [new TextRun({ text: exp.years, italics: true })],
+                children: [
+                  new TextRun({ 
+                    text: `${exp.dates.from_year}${exp.dates.to_year ? ` - ${exp.dates.to_year}` : ' - Present'}${exp.location ? ` | ${exp.location}` : ''}`,
+                  }),
+                ],
               }),
-              ...exp.highlights.map(
-                highlight =>
-                  new Paragraph({
-                    text: `• ${highlight}`,
-                    bullet: { level: 0 },
-                  })
+              ...(exp.overview ? [
+                new Paragraph({
+                  text: exp.overview,
+                }),
+              ] : []),
+              ...exp.achievements.map(achievement =>
+                new Paragraph({
+                  text: `• ${achievement.bullet}`,
+                  bullet: { level: 0 },
+                })
               ),
               new Paragraph({ text: "" }),
             ]),
 
-            // Education
-            new Paragraph({
-              text: "Education",
-              heading: HeadingLevel.HEADING_2,
-            }),
-            ...cv.education.flatMap(edu => [
+            // Earlier Career Summary (if present)
+            ...(cv.earlier_career_summary && cv.earlier_career_summary.length > 0 ? [
               new Paragraph({
-                children: [
-                  new TextRun({ text: edu.degree, bold: true }),
-                  new TextRun({ text: ` - ${edu.institution}` }),
-                ],
+                text: "Earlier Career",
+                heading: HeadingLevel.HEADING_2,
               }),
-              new Paragraph({
-                children: [new TextRun({ text: edu.years, italics: true })],
-              }),
+              ...cv.earlier_career_summary.map(role =>
+                new Paragraph({
+                  text: `• ${role.title} at ${role.employer}`,
+                  bullet: { level: 0 },
+                })
+              ),
               new Paragraph({ text: "" }),
-            ]),
+            ] : []),
 
-            // Skills
-            new Paragraph({
-              text: "Skills",
-              heading: HeadingLevel.HEADING_2,
-            }),
-            new Paragraph({
-              text: cv.skills.join(" • "),
-            }),
-            new Paragraph({ text: "" }),
+            // Education
+            ...(cv.education && cv.education.length > 0 ? [
+              new Paragraph({
+                text: "Education",
+                heading: HeadingLevel.HEADING_2,
+              }),
+              ...cv.education.flatMap(edu => [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: edu.qualification, bold: true }),
+                    new TextRun({ text: ` - ${edu.institution}` }),
+                  ],
+                }),
+                ...(edu.city_country ? [
+                  new Paragraph({
+                    text: edu.city_country,
+                  }),
+                ] : []),
+                new Paragraph({ text: "" }),
+              ]),
+            ] : []),
 
             // Certifications (if any)
-            ...(cv.certifications.length > 0
+            ...(cv.certifications && cv.certifications.length > 0
               ? [
                   new Paragraph({
                     text: "Certifications",
@@ -107,8 +162,63 @@ export class DocumentGenerationService {
                         bullet: { level: 0 },
                       })
                   ),
+                  new Paragraph({ text: "" }),
                 ]
               : []),
+
+            // Publications (if any)
+            ...(cv.publications && cv.publications.length > 0 ? [
+              new Paragraph({
+                text: "Publications",
+                heading: HeadingLevel.HEADING_2,
+              }),
+              ...cv.publications.map(pub =>
+                new Paragraph({
+                  text: `• ${pub}`,
+                  bullet: { level: 0 },
+                })
+              ),
+              new Paragraph({ text: "" }),
+            ] : []),
+
+            // Optional Sections
+            ...(cv.optional_sections?.languages && cv.optional_sections.languages.length > 0 ? [
+              new Paragraph({
+                text: "Languages",
+                heading: HeadingLevel.HEADING_2,
+              }),
+              new Paragraph({
+                text: cv.optional_sections.languages.join(" • "),
+              }),
+              new Paragraph({ text: "" }),
+            ] : []),
+
+            ...(cv.optional_sections?.awards && cv.optional_sections.awards.length > 0 ? [
+              new Paragraph({
+                text: "Awards & Recognition",
+                heading: HeadingLevel.HEADING_2,
+              }),
+              ...cv.optional_sections.awards.map(award =>
+                new Paragraph({
+                  text: `• ${award}`,
+                  bullet: { level: 0 },
+                })
+              ),
+              new Paragraph({ text: "" }),
+            ] : []),
+
+            ...(cv.optional_sections?.memberships && cv.optional_sections.memberships.length > 0 ? [
+              new Paragraph({
+                text: "Professional Memberships",
+                heading: HeadingLevel.HEADING_2,
+              }),
+              ...cv.optional_sections.memberships.map(membership =>
+                new Paragraph({
+                  text: `• ${membership}`,
+                  bullet: { level: 0 },
+                })
+              ),
+            ] : []),
           ],
         },
       ],
@@ -125,9 +235,31 @@ export class DocumentGenerationService {
       sections: [
         {
           children: [
+            // Candidate Header
+            new Paragraph({
+              text: coverLetter.header.full_name,
+              alignment: AlignmentType.LEFT,
+            }),
+            // Contact block - split on newlines to preserve formatting
+            ...coverLetter.header.contact_block.split('\n').map(line =>
+              new Paragraph({
+                text: line,
+                alignment: AlignmentType.LEFT,
+              })
+            ),
+            // City/Region if present
+            ...(coverLetter.header.city_region ? [
+              new Paragraph({
+                text: coverLetter.header.city_region,
+                alignment: AlignmentType.LEFT,
+              }),
+            ] : []),
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: "" }),
+
             // Date
             new Paragraph({
-              text: new Date().toLocaleDateString("en-GB", {
+              text: new Date(coverLetter.meta.date_iso).toLocaleDateString("en-GB", {
                 day: "numeric",
                 month: "long",
                 year: "numeric",
@@ -135,33 +267,77 @@ export class DocumentGenerationService {
             }),
             new Paragraph({ text: "" }),
 
-            // Greeting
+            // Recipient Address (if available)
+            ...(coverLetter.meta.recipient.name ? [
+              new Paragraph({
+                text: coverLetter.meta.recipient.name,
+              }),
+            ] : []),
+            ...(coverLetter.meta.recipient.title ? [
+              new Paragraph({
+                text: coverLetter.meta.recipient.title,
+              }),
+            ] : []),
+            ...(coverLetter.meta.recipient.company ? [
+              new Paragraph({
+                text: coverLetter.meta.recipient.company,
+              }),
+            ] : []),
+            ...(coverLetter.meta.recipient.address ? [
+              new Paragraph({
+                text: coverLetter.meta.recipient.address,
+              }),
+            ] : []),
+            new Paragraph({ text: "" }),
+
+            // Subject
             new Paragraph({
-              text: coverLetter.greeting,
+              children: [
+                new TextRun({ text: coverLetter.meta.subject, bold: true }),
+              ],
             }),
             new Paragraph({ text: "" }),
 
-            // Opening
+            // Greeting (default if no recipient name)
             new Paragraph({
-              text: coverLetter.opening,
+              text: coverLetter.meta.recipient.name 
+                ? `Dear ${coverLetter.meta.recipient.name},`
+                : "Dear Hiring Manager,",
             }),
             new Paragraph({ text: "" }),
 
-            // Body
+            // Opening Paragraph
             new Paragraph({
-              text: coverLetter.body,
+              text: coverLetter.paragraphs.opening,
             }),
             new Paragraph({ text: "" }),
 
-            // Closing
+            // Alignment Paragraph
             new Paragraph({
-              text: coverLetter.closing,
+              text: coverLetter.paragraphs.alignment,
             }),
             new Paragraph({ text: "" }),
 
-            // Signature
+            // Fit Evidence Paragraph
             new Paragraph({
-              text: coverLetter.signature,
+              text: coverLetter.paragraphs.fit_evidence,
+            }),
+            new Paragraph({ text: "" }),
+
+            // Closing Paragraph
+            new Paragraph({
+              text: coverLetter.paragraphs.closing,
+            }),
+            new Paragraph({ text: "" }),
+
+            // Sign Off
+            new Paragraph({
+              text: coverLetter.sign_off.closing,
+            }),
+            new Paragraph({ text: "" }),
+            new Paragraph({ text: "" }),
+            new Paragraph({
+              text: coverLetter.sign_off.name,
             }),
           ],
         },
@@ -187,7 +363,6 @@ export class DocumentGenerationService {
             new Paragraph({
               text: "Summary of improvements made to your CV",
               alignment: AlignmentType.CENTER,
-              italics: true,
             }),
             new Paragraph({ text: "" }),
             new Paragraph({ text: "" }),
@@ -203,7 +378,6 @@ export class DocumentGenerationService {
               }),
               new Paragraph({
                 text: `"${change.quote}"`,
-                italics: true,
               }),
               new Paragraph({ text: "" }),
             ]),
