@@ -389,6 +389,16 @@ async function processJobApplication(
 
     // STAGE 2: Generate draft (Pass 1)
     await storage.updateRunStatus(runId, "DRAFT_PASS1");
+    
+    // For very long CVs (>10,000 chars), intelligently condense to avoid overwhelming the AI
+    let cvContent = candidate.longformCv;
+    if (cvContent.length > 10000) {
+      // Extract first 8000 chars (key sections) + last 2000 chars (recent/education)
+      const firstPart = cvContent.substring(0, 8000);
+      const lastPart = cvContent.substring(cvContent.length - 2000);
+      cvContent = `${firstPart}\n\n...[CV CONDENSED FOR LENGTH - Full ${cvContent.length} characters]...\n\n${lastPart}`;
+    }
+    
     const candidateProfile = `
 CANDIDATE CONTACT INFORMATION:
 Name: ${candidate.fullName}
@@ -398,7 +408,7 @@ Location: ${candidate.cityRegion || 'Not provided'}
 LinkedIn: ${candidate.linkedin || 'Not provided'}
 
 CANDIDATE'S COMPLETE CV / CAREER HISTORY:
-${candidate.longformCv}
+${cvContent}
 `.trim();
     
     const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any);
