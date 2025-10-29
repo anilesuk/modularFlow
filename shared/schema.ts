@@ -295,8 +295,12 @@ export const cvDocumentSchema = z.object({
         source_snippet: z.string(),
         start_char: z.number().optional(),
         end_char: z.number().optional(),
-      }).optional(),
+      }), // MANDATORY - enforces grounding to candidate profile
     })),
+    jd_alignment: z.object({
+      criteria_hit: z.array(z.string()), // evaluation criteria names covered in this role
+      jd_signals_used: z.array(z.string()), // JD terms/phrases addressed
+    }).optional(),
   })).min(1),
   earlier_career_summary: z.array(z.object({
     title: z.string(),
@@ -320,6 +324,17 @@ export const cvDocumentSchema = z.object({
     awards: z.array(z.string()).optional(),
     memberships: z.array(z.string()).optional(),
   }).optional(),
+  jd_alignment: z.object({
+    headline_signals: z.array(z.string()).optional(),
+    profile_signals: z.array(z.string()).optional(),
+    key_skills_signals: z.array(z.string()).optional(),
+    technical_skills_signals: z.array(z.string()).optional(),
+  }).optional(), // Section-level JD alignment tracking
+  criteria_coverage: z.array(z.object({
+    criterion: z.string(), // evaluation criterion name
+    covered: z.boolean(),
+    evidence_fields: z.array(z.string()), // JSON paths where criterion is evidenced
+  })).optional(),
 });
 
 export type CvDocument = z.infer<typeof cvDocumentSchema>;
@@ -351,6 +366,11 @@ export const coverLetterSchema = z.object({
     closing: z.string(),
     name: z.string(),
   }),
+  jd_signals_used: z.array(z.string()).optional(), // JD terms/phrases addressed in letter
+  grounding_refs: z.array(z.object({
+    cv_path: z.string(), // JSON path to CV field (e.g., "experience[0].achievements[1]")
+    excerpt: z.string(), // Brief excerpt from CV
+  })).optional(), // References to CV facts used in letter
 });
 
 export type CoverLetter = z.infer<typeof coverLetterSchema>;
@@ -363,6 +383,7 @@ export const scorecardSchema = z.object({
     cv_strength: z.string(),
     score_1_to_10: z.number().int().min(1).max(10),
     criterion_ref: z.string().optional(), // Reference to evaluation_criteria[index].name
+    reason_for_score: z.string().optional(), // Explanation of why this score was given
   })).min(4).max(12),
   overall_score_1_to_10: z.number().min(1).max(10), // Weighted average from evaluation criteria
 });
