@@ -88,15 +88,14 @@ export default function Results() {
     );
   }
 
-  if (!run || run.status !== "COMPLETED") {
+  // Show "still processing" only for non-failed incomplete runs
+  if (!run || (run.status !== "COMPLETED" && run.status !== "FAILED")) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Card className="p-8 text-center max-w-md">
           <h2 className="text-xl font-semibold mb-2">Results Not Available</h2>
           <p className="text-muted-foreground mb-6">
-            {run?.status === "FAILED" 
-              ? "This processing run failed."
-              : "This application is still being processed."}
+            This application is still being processed. Please check back in a few minutes.
           </p>
           <Link href="/">
             <Button data-testid="button-return-results-not-available">Return to Dashboard</Button>
@@ -105,6 +104,11 @@ export default function Results() {
       </div>
     );
   }
+  
+  // For FAILED runs, show partial results if available
+  const hasDraft = !!draft;
+  const hasFinal = !!final;
+  const hasArtifacts = !!artifact;
 
   const scorecardPass1 = draft?.scorecardPass1Jsonb as unknown as Scorecard | undefined;
   const scorecardPass2 = final?.scorecardPass2Jsonb as unknown as Scorecard | undefined;
@@ -125,6 +129,28 @@ export default function Results() {
           </Link>
         </div>
 
+        {/* Warning banner for failed runs */}
+        {run.status === "FAILED" && (
+          <Card className="p-6 mb-8 bg-yellow-50 dark:bg-yellow-950 border-yellow-200 dark:border-yellow-800">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-600 dark:text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+                  Processing Incomplete
+                </h3>
+                <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
+                  The processing pipeline encountered an error: {run.errorMessage || "Unknown error"}
+                  {hasDraft || hasFinal ? " However, partial results are available below." : ""}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-3xl font-semibold mb-2">Application Results</h1>
@@ -132,10 +158,16 @@ export default function Results() {
               {run.jobPostUrl}
             </p>
           </div>
-          <Button onClick={handleDownloadAll} data-testid="button-download-all">
-            <Download className="h-4 w-4 mr-2" />
-            Download All
-          </Button>
+          {hasArtifacts ? (
+            <Button onClick={handleDownloadAll} data-testid="button-download-all">
+              <Download className="h-4 w-4 mr-2" />
+              Download All
+            </Button>
+          ) : (
+            <Badge variant="secondary" data-testid="badge-no-downloads">
+              Downloads not available
+            </Badge>
+          )}
         </div>
 
         {/* Score Improvement */}
@@ -190,25 +222,36 @@ export default function Results() {
             <Card className="p-6">
               <h2 className="text-xl font-semibold mb-6">Job Alignment Scorecard</h2>
               
-              {scorecardPass2?.scorecard.map((item, index) => (
-                <div key={index} className="mb-6 last:mb-0" data-testid={`scorecard-item-${index}`}>
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold" data-testid={`scorecard-area-${index}`}>{item.area}</h3>
-                    <Badge data-testid={`scorecard-score-${index}`}>{item.score_1_to_10}/10</Badge>
-                  </div>
-                  <Progress value={item.score_1_to_10 * 10} className="h-2 mb-3" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-muted-foreground mb-1">Job Expectation:</div>
-                      <p>{item.jd_expectation}</p>
+              {(scorecardPass2 || scorecardPass1) ? (
+                <>
+                  {run.status === "FAILED" && !scorecardPass2 && scorecardPass1 && (
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Showing Pass 1 scorecard (optimization not completed)
+                    </p>
+                  )}
+                  {(scorecardPass2?.scorecard || scorecardPass1?.scorecard || []).map((item, index) => (
+                    <div key={index} className="mb-6 last:mb-0" data-testid={`scorecard-item-${index}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold" data-testid={`scorecard-area-${index}`}>{item.area}</h3>
+                        <Badge data-testid={`scorecard-score-${index}`}>{item.score_1_to_10}/10</Badge>
+                      </div>
+                      <Progress value={item.score_1_to_10 * 10} className="h-2 mb-3" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <div className="text-muted-foreground mb-1">Job Expectation:</div>
+                          <p>{item.jd_expectation}</p>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">CV Strength:</div>
+                          <p>{item.cv_strength}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-muted-foreground mb-1">CV Strength:</div>
-                      <p>{item.cv_strength}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  ))}
+                </>
+              ) : (
+                <p className="text-muted-foreground">Scorecard data not available.</p>
+              )}
             </Card>
           </TabsContent>
 
@@ -220,24 +263,28 @@ export default function Results() {
                   size="sm"
                   variant="outline"
                   onClick={() => handleDownload("added-points")}
-                  disabled={downloading === "added-points"}
+                  disabled={!hasArtifacts || downloading === "added-points"}
                   data-testid="button-download-enhancements"
                 >
-                  {downloading === "added-points" ? "Downloading..." : "Download .docx"}
+                  {downloading === "added-points" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
                 </Button>
               </div>
               
               <div className="space-y-4">
-                {addedPoints?.map((point, index) => (
-                  <div key={index} className="pb-4 border-b border-border last:border-0 last:pb-0" data-testid={`enhancement-${index}`}>
-                    <div className="font-medium mb-2" data-testid={`enhancement-description-${index}`}>
-                      {index + 1}. {point.description}
+                {addedPoints && addedPoints.length > 0 ? (
+                  addedPoints.map((point, index) => (
+                    <div key={index} className="pb-4 border-b border-border last:border-0 last:pb-0" data-testid={`enhancement-${index}`}>
+                      <div className="font-medium mb-2" data-testid={`enhancement-description-${index}`}>
+                        {index + 1}. {point.description}
+                      </div>
+                      <blockquote className="pl-4 border-l-4 border-primary/30 text-sm text-muted-foreground italic" data-testid={`enhancement-quote-${index}`}>
+                        "{point.quote}"
+                      </blockquote>
                     </div>
-                    <blockquote className="pl-4 border-l-4 border-primary/30 text-sm text-muted-foreground italic" data-testid={`enhancement-quote-${index}`}>
-                      "{point.quote}"
-                    </blockquote>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-muted-foreground">Enhancement data not available (optimization not completed).</p>
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -248,10 +295,10 @@ export default function Results() {
                 <h2 className="text-xl font-semibold">Tailored CV</h2>
                 <Button
                   onClick={() => handleDownload("cv")}
-                  disabled={downloading === "cv"}
+                  disabled={!hasArtifacts || downloading === "cv"}
                   data-testid="button-download-cv"
                 >
-                  {downloading === "cv" ? "Downloading..." : "Download .docx"}
+                  {downloading === "cv" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
                 </Button>
               </div>
               <p className="text-muted-foreground">
@@ -267,10 +314,10 @@ export default function Results() {
                 <h2 className="text-xl font-semibold">Cover Letter</h2>
                 <Button
                   onClick={() => handleDownload("cover-letter")}
-                  disabled={downloading === "cover-letter"}
+                  disabled={!hasArtifacts || downloading === "cover-letter"}
                   data-testid="button-download-cover-letter"
                 >
-                  {downloading === "cover-letter" ? "Downloading..." : "Download .docx"}
+                  {downloading === "cover-letter" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
                 </Button>
               </div>
               <p className="text-muted-foreground">

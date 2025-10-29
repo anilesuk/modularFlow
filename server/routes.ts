@@ -421,45 +421,62 @@ async function processJobApplication(
     // STAGE 4: Validate (ATS compliance check - already done in AI prompts)
     await storage.updateRunStatus(runId, "VALIDATED");
 
-    // STAGE 5: Render .docx documents
-    await storage.updateRunStatus(runId, "RENDERING");
-    
-    const [cvBuffer, coverLetterBuffer, enhancementBuffer] = await Promise.all([
-      docGen.generateCvDocx(optimizedResult.cvFinal),
-      docGen.generateCoverLetterDocx(optimizedResult.coverLetterFinal),
-      docGen.generateEnhancementReportDocx(optimizedResult.addedPoints),
-    ]);
+    // STAGE 5: Render .docx documents (non-blocking - preserve intermediate state if this fails)
+    try {
+      await storage.updateRunStatus(runId, "RENDERING");
+      
+      const [cvBuffer, coverLetterBuffer, enhancementBuffer] = await Promise.all([
+        docGen.generateCvDocx(optimizedResult.cvFinal),
+        docGen.generateCoverLetterDocx(optimizedResult.coverLetterFinal),
+        docGen.generateEnhancementReportDocx(optimizedResult.addedPoints),
+      ]);
 
-    // Upload to object storage
-    const cvPath = objectStorage.generateStoragePath(userId, runId, "cv");
-    const coverLetterPath = objectStorage.generateStoragePath(userId, runId, "cover_letter");
-    const enhancementPath = objectStorage.generateStoragePath(userId, runId, "enhancements");
+      // Upload to object storage
+      const cvPath = objectStorage.generateStoragePath(userId, runId, "cv");
+      const coverLetterPath = objectStorage.generateStoragePath(userId, runId, "cover_letter");
+      const enhancementPath = objectStorage.generateStoragePath(userId, runId, "enhancements");
 
-    await Promise.all([
-      objectStorage.upload({
-        key: cvPath,
-        body: cvBuffer,
-        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      }),
-      objectStorage.upload({
-        key: coverLetterPath,
-        body: coverLetterBuffer,
-        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      }),
-      objectStorage.upload({
-        key: enhancementPath,
-        body: enhancementBuffer,
-        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      }),
-    ]);
+      await Promise.all([
+        objectStorage.upload({
+          key: cvPath,
+          body: cvBuffer,
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }),
+        objectStorage.upload({
+          key: coverLetterPath,
+          body: coverLetterBuffer,
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }),
+        objectStorage.upload({
+          key: enhancementPath,
+          body: enhancementBuffer,
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        }),
+      ]);
 
-    // Create single artifact record with all three document paths
-    await storage.createArtifact({
-      runId,
-      cvPath,
-      coverLetterPath,
-      addedPointsPath: enhancementPath,
-    });
+      // Create single artifact record with all three document paths
+      await storage.createArtifact({
+        runId,
+        cvPath,
+        coverLetterPath,
+        addedPointsPath: enhancementPath,
+      });
+    } catch (renderError: any) {
+      // Log the error but don't fail the entire run - user can still see draft/final data
+      console.error(`Document rendering/upload failed for run ${runId}, but preserving intermediate results:`, renderError);
+      await storage.updateRunStatus(runId, "COMPLETED", `Note: Document rendering failed (${renderError.message}), but all data is available for viewing.`);
+      
+      await storage.createAuditLog({
+        userId,
+        action: "RENDERING_FAILED",
+        resourceType: "run",
+        resourceId: runId,
+        details: { error: renderError.message },
+      });
+      
+      // Return early - run is still considered successful
+      return;
+    }
 
     // STAGE 6: Complete
     await storage.updateRunStatus(runId, "COMPLETED");
