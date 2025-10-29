@@ -9,6 +9,55 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
 });
 
+/**
+ * Auto-repair common validation failures in AI output
+ */
+function autoRepairAIOutput(result: any): any {
+  // Handle both nested (result.cv) and flat CV objects
+  const cv = result.cv || result;
+  
+  // Repair key_skills length: trim to 16 if exceeded
+  if (cv.key_skills && Array.isArray(cv.key_skills)) {
+    if (cv.key_skills.length > 16) {
+      console.log(`Auto-repair: Trimming key_skills from ${cv.key_skills.length} to 16`);
+      cv.key_skills = cv.key_skills.slice(0, 16);
+    }
+    if (cv.key_skills.length < 8) {
+      console.log(`Auto-repair: key_skills has only ${cv.key_skills.length} items (minimum 8)`);
+    }
+  }
+  
+  // Repair profile_summary length: truncate if too long
+  if (cv.profile_summary && typeof cv.profile_summary === 'string') {
+    if (cv.profile_summary.length > 220) {
+      console.log(`Auto-repair: Truncating profile_summary from ${cv.profile_summary.length} to 220 chars`);
+      cv.profile_summary = cv.profile_summary.substring(0, 217) + '...';
+    }
+  }
+  
+  // Normalize evaluation criteria weights to sum to 100
+  if (result.evaluationCriteria && Array.isArray(result.evaluationCriteria)) {
+    const totalWeight = result.evaluationCriteria.reduce((sum: number, c: any) => sum + (c.weight_percent || 0), 0);
+    if (totalWeight === 0) {
+      console.log('Auto-repair: WARNING - All criteria weights are zero, cannot normalize');
+    } else if (Math.abs(totalWeight - 100) > 0.1) {
+      console.log(`Auto-repair: Normalizing criteria weights from ${totalWeight} to 100`);
+      const factor = 100 / totalWeight;
+      result.evaluationCriteria = result.evaluationCriteria.map((c: any) => ({
+        ...c,
+        weight_percent: Math.round(c.weight_percent * factor)
+      }));
+      // Fix rounding errors by adjusting the first item
+      const newTotal = result.evaluationCriteria.reduce((sum: number, c: any) => sum + c.weight_percent, 0);
+      if (newTotal !== 100) {
+        result.evaluationCriteria[0].weight_percent += (100 - newTotal);
+      }
+    }
+  }
+  
+  return result;
+}
+
 export class AIService {
   /**
    * Phase 0: Analyze job posting to extract structured JD spec and evaluation criteria
@@ -19,13 +68,20 @@ export class AIService {
     jdSpec: JdSpec;
     evaluationCriteria: EvaluationCriteria;
   }> {
-    const systemPrompt = `You are a job description analysis expert. Extract structured information from job postings to create:
-1. A detailed JD specification with must-haves, nice-to-haves, responsibilities, skills, tools, and domains
-2. Weighted evaluation criteria (4-7 items, weights sum to 100%) with scoring rubrics
+    const systemPrompt = `You are a job description analysis expert. Return ONE valid JSON object only (no prose, no markdown).
 
-Output MUST be valid JSON only.`;
+GOAL
+1) Extract a strict JD specification from the posting.
+2) Derive 4–7 weighted evaluation criteria that are specific to THIS JD, using concrete phrases/signals from the text. Weights must sum to exactly 100.
 
-    const userPrompt = `Analyze this job posting and extract structured data.
+RULES
+- Extract 4–7 criteria; weights must sum to exactly 100.
+- Criteria must reference concrete JD signals (verbatim phrases/terms).
+- Use ONLY the allowed keys in scope_indicators: team_size, budget, regions, stakeholder_levels.
+- Do NOT add unknown or extra fields to any object.
+- Output valid JSON only.`;
+
+    const userPrompt = `Analyze the following job posting and produce the JSON requested in the system prompt.
 
 JOB POSTING:
 Company: ${jobPosting.company?.name || "Not specified"}
@@ -33,7 +89,7 @@ Role: ${jobPosting.role.title}
 Location: ${jobPosting.role.location || "Not specified"}
 Description: ${jobPosting.description.clean_text}
 
-REQUIRED OUTPUT:
+OUTPUT SHAPE:
 {
   "jdSpec": {
     "company": {
@@ -134,7 +190,8 @@ RULES:
       max_completion_tokens: 4096,
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    let result = JSON.parse(response.choices[0].message.content || "{}");
+    result = autoRepairAIOutput(result);
     
     try {
       const jdSpec = jdSpecSchema.parse(result.jdSpec);
@@ -168,18 +225,30 @@ RULES:
     jdSpec: JdSpec,
     evaluationCriteria: EvaluationCriteria
   ): Promise<CvDocument> {
-    const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Generate a tailored CV as JSON only.
+    const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
 
-ABSOLUTE RULES (ATS + Style):
-- No pronouns (I/me/my/we/us/he/she)
-- SOAR format achievements: Situation, Obstacle, Action, Result in one concise bullet
-- Years only for dates (e.g., "2020-2023"), no months
-- Profile summary: EXACTLY 80-220 characters (strict)
-- key_skills: MUST contain EXACTLY 8-16 items. NEVER exceed 16 items. COUNT CAREFULLY.
-- Each achievement ends with period, led by past-tense action verb
-- Quantify where source supports it
+NON-NEGOTIABLE ATS + STYLE
+- No pronouns (I/me/my/we/us/he/she).
+- Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
+- Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
+- Profile summary length: 80–220 characters (strict).
+- key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
+- Quantify only where supported by the candidate profile (no invented numbers).
+- Reverse chronological; emphasise last 10–12 years; summarise earlier career WITHOUT dates.
+- Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
-OUTPUT: Return CV JSON only, matching this structure exactly.`;
+GROUNDING & ALIGNMENT (MANDATORY)
+- Every achievement MUST include a "grounding" object with "source_snippet" taken verbatim from the candidate profile.
+- Include "jd_alignment" at each role to show which JD signals/criteria are covered.
+- Include "jd_alignment" at CV root level mapping sections to JD signals.
+- Include "criteria_coverage" list mapping each evaluation criterion to CV fields that evidence it.
+
+VALIDATE BEFORE RETURN
+- profile_summary 80–220 chars; key_skills length 8–16.
+- All years are numbers; dates show years only.
+- Each achievement has grounding.source_snippet and ends with a period.
+- At least one criteria_coverage item per evaluation criterion provided.
+- Output JSON only.`;
 
     const criteriaContext = evaluationCriteria.map(c => 
       `${c.name} (${c.weight_percent}%): Focus on ${c.jd_signals.join(', ')}`
@@ -242,10 +311,33 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 8
       max_completion_tokens: 6144,
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    let result = JSON.parse(response.choices[0].message.content || "{}");
+    result = autoRepairAIOutput(result);
     
     try {
-      return cvDocumentSchema.parse(result);
+      const cv = cvDocumentSchema.parse(result);
+      
+      // Runtime validation: Enforce grounding for new documents
+      if (cv.experience && cv.experience.length > 0) {
+        const missingGrounding: string[] = [];
+        cv.experience.forEach((exp, expIdx) => {
+          exp.achievements?.forEach((ach, achIdx) => {
+            if (!ach.grounding || !ach.grounding.source_snippet) {
+              missingGrounding.push(`experience[${expIdx}].achievements[${achIdx}]`);
+            }
+          });
+        });
+        if (missingGrounding.length > 0) {
+          throw new Error(`MANDATORY GROUNDING MISSING: AI failed to provide source snippets for ${missingGrounding.length} achievements at: ${missingGrounding.join(', ')}`);
+        }
+      }
+      
+      // Runtime validation: Warn if criteria_coverage is missing
+      if (!cv.criteria_coverage || cv.criteria_coverage.length === 0) {
+        console.warn('WARNING: AI did not provide criteria_coverage mapping');
+      }
+      
+      return cv;
     } catch (error: any) {
       console.error("CV generation validation failed:", error);
       console.error("Raw AI output:", JSON.stringify(result, null, 2));
@@ -266,17 +358,21 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 8
     cv: CvDocument,
     jdSpec: JdSpec
   ): Promise<CoverLetter> {
-    const systemPrompt = `You are an expert cover letter writer for senior technology leadership roles. Generate a UK business letter style cover letter as JSON only.
+    const systemPrompt = `You are a cover letter writer for senior technology leadership roles. Return ONE valid JSON object (the cover letter only).
 
-RULES:
-- UK business letter format
-- 300-400 words total across all paragraphs
-- Professional, formal tone
-- Reference ONLY facts from the provided CV
-- No pronouns (I/me/my)
-- Structure: Opening → Alignment → Fit Evidence → Closing
+RULES
+- UK business letter format; professional, formal tone.
+- 300–400 words TOTAL across opening, alignment, fit_evidence, closing.
+- Reference ONLY facts present in the provided CV JSON.
+- No pronouns (I/me/my/we/us/he/she).
+- Structure: Opening → Alignment → Fit Evidence → Closing.
+- Include "jd_signals_used" array with concrete JD terms addressed.
+- Include "grounding_refs" array showing which CV sections are referenced (optional but recommended).
 
-OUTPUT: Return cover letter JSON only.`;
+VALIDATE BEFORE RETURN
+- 300–400 words total across the four paragraphs.
+- Every fact must be supported by the provided CV JSON.
+- Output JSON only.`;
 
     const userPrompt = `Generate a tailored cover letter for this job.
 
@@ -365,11 +461,20 @@ CRITICAL:
     scorecard: Scorecard;
     recommendations: Recommendation[];
   }> {
-    const systemPrompt = `You are a CV assessment expert. Analyze the CV against job requirements to generate:
-1. A detailed scorecard (4-12 areas) with weighted scoring
-2. Actionable recommendations for improvement
+    const systemPrompt = `You are a CV assessment expert. Return ONE valid JSON object only.
 
-OUTPUT: Return valid JSON only.`;
+GOAL
+1) Produce a scorecard (4–12 areas) mapped to the provided evaluation criteria.
+2) Provide 3–8 actionable recommendations with JSON paths and suggested text.
+3) Compute overall_score_1_to_10 as a weighted average using the evaluation criteria weights.
+
+RULES
+- Use the provided evaluationCriteria (4–7 items; weights sum to 100).
+- Score each criterion; compute weighted average and set overall_score_1_to_10 (round to 1 decimal).
+- Each scorecard item MUST include criterion_ref matching an evaluation criterion name.
+- Include reason_for_score explaining each rating.
+- Output 3–8 recommendations that directly raise the score against criteria; map each to a JSON path.
+- JSON only.`;
 
     const criteriaDetails = evaluationCriteria.map(c => 
       `${c.name} (${c.weight_percent}%): ${c.jd_signals.join(', ')}\n  Excellent: ${c.rubric.excellent}\n  Good: ${c.rubric.good}`
@@ -517,16 +622,25 @@ CRITICAL:
     scorecardFinal: Scorecard;
     addedPoints: TraceChange[];
   }> {
-    const systemPrompt = `You refine CV and cover-letter JSON from Pass 1 using explicit recommendations while preserving ATS compliance and truthfulness. Return ONE valid JSON object only.
+    const systemPrompt = `You refine CV and cover-letter JSON from Pass 1 using explicit recommendations. Return ONE valid JSON object only.
 
 RULES
 - Apply ALL recommendations without inventing facts.
-- No pronouns. Years only. SOAR format. End bullets with period.
-- Profile summary: EXACTLY 80-220 chars (strict).
-- key_skills: MUST contain EXACTLY 8-16 items. NEVER exceed 16 items.
-- Cover letter 300-400 words, UK style.
-- Rescore and include overall_score_1_to_10.
-- Track changes in addedPoints.
+- Preserve or update grounding for any edited achievement (keep grounding.source_snippet; update if the sentence changed).
+- No pronouns. Years only. SOAR bullets; end with a period.
+- Profile summary: 80–220 chars (strict).
+- key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
+- Cover letter: 300–400 words; UK style; reflect final CV.
+- Rescore against the evaluation criteria and include overall_score_1_to_10 (weighted average).
+- Each scorecard item MUST include criterion_ref and reason_for_score.
+- Track significant changes in addedPoints with exact final quotes and target_section.
+
+VALIDATE BEFORE RETURN
+- profile_summary 80–220 chars; key_skills 8–16; scorecard 4–12.
+- criterion_ref values exist in evaluationCriteria.name.
+- Dates are years only; achievements end with a period; each includes grounding.source_snippet.
+- Cover letter 300–400 words.
+- Output JSON only.
 
 OUTPUT SHAPE
 {
@@ -573,13 +687,29 @@ Return refined JSON with addedPoints tracking changes. Calculate overall_score_1
       max_completion_tokens: 8192,
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    let result = JSON.parse(response.choices[0].message.content || "{}");
+    result = autoRepairAIOutput(result);
     
     // Validate AI output against schemas before returning
     try {
       const cvFinal = cvDocumentSchema.parse(result.cv);
       const coverLetterFinal = coverLetterSchema.parse(result.coverLetter);
       const scorecardFinal = scorecardSchema.parse(result.scorecard);
+      
+      // Runtime validation: Enforce grounding for optimized documents
+      if (cvFinal.experience && cvFinal.experience.length > 0) {
+        const missingGrounding: string[] = [];
+        cvFinal.experience.forEach((exp, expIdx) => {
+          exp.achievements?.forEach((ach, achIdx) => {
+            if (!ach.grounding || !ach.grounding.source_snippet) {
+              missingGrounding.push(`experience[${expIdx}].achievements[${achIdx}]`);
+            }
+          });
+        });
+        if (missingGrounding.length > 0) {
+          throw new Error(`MANDATORY GROUNDING MISSING in optimized CV: ${missingGrounding.length} achievements lack source snippets at: ${missingGrounding.join(', ')}`);
+        }
+      }
       
       // Safely validate addedPoints array
       if (!Array.isArray(result.addedPoints) && result.addedPoints !== undefined) {

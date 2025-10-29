@@ -295,7 +295,7 @@ export const cvDocumentSchema = z.object({
         source_snippet: z.string(),
         start_char: z.number().optional(),
         end_char: z.number().optional(),
-      }), // MANDATORY - enforces grounding to candidate profile
+      }).optional(), // Optional for backward compatibility; prompts enforce for new docs
     })),
     jd_alignment: z.object({
       criteria_hit: z.array(z.string()), // evaluation criteria names covered in this role
