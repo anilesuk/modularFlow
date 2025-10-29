@@ -66,9 +66,12 @@ export type InsertCandidate = z.infer<typeof insertCandidateSchema>;
 // Processing runs - tracks each CV tailoring request
 export const runs = pgTable("runs", {
   id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id").notNull().references(() => users.id),
   candidateId: uuid("candidate_id").notNull().references(() => candidates.id, { onDelete: 'cascade' }),
-  jobPostUrl: text("job_post_url").notNull(),
-  idempotencyKey: varchar("idempotency_key", { length: 64 }).notNull().unique(),
+  jobPostingId: uuid("job_posting_id"), // Set after job posting is created
+  jobPostUrl: text("job_post_url"), // Optional - either this OR manualJd
+  manualJd: text("manual_jd"), // Optional - manual job description instead of URL
+  idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull().unique(),
   status: varchar("status", { length: 50 }).notNull(), // QUEUED, SCRAPING, DRAFT_PASS1, OPTIMIZING_PASS2, VALIDATED, RENDERING, COMPLETED, FAILED
   errorMessage: text("error_message"),
   

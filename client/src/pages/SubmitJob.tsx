@@ -4,11 +4,13 @@ import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Link2, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Link2, ArrowRight, CheckCircle2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
@@ -17,8 +19,22 @@ import type { Candidate } from "@shared/schema";
 
 const submitSchema = z.object({
   candidateId: z.string().min(1, "Please select a candidate"),
-  jobPostUrl: z.string().url("Please enter a valid URL"),
-});
+  inputType: z.enum(["url", "manual"]).default("url"),
+  jobPostUrl: z.string().optional(),
+  manualJd: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.inputType === "url") {
+      return data.jobPostUrl && z.string().url().safeParse(data.jobPostUrl).success;
+    } else {
+      return data.manualJd && data.manualJd.trim().length > 0;
+    }
+  },
+  {
+    message: "Please provide either a valid URL or manual job description",
+    path: ["jobPostUrl"],
+  }
+);
 
 type SubmitForm = z.infer<typeof submitSchema>;
 
@@ -35,16 +51,18 @@ export default function SubmitJob() {
     resolver: zodResolver(submitSchema),
     defaultValues: {
       candidateId: "",
+      inputType: "url",
       jobPostUrl: "",
+      manualJd: "",
     },
   });
 
+  const inputType = form.watch("inputType");
+
   const submitMutation = useMutation({
     mutationFn: async (data: SubmitForm) => {
-      return await apiRequest("/api/runs", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      const res = await apiRequest("POST", "/api/runs", data);
+      return await res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/runs"] });
@@ -53,7 +71,7 @@ export default function SubmitJob() {
         description: "Your application is being processed. Redirecting to status page...",
       });
       setTimeout(() => {
-        navigate(`/status/${data.runId}`);
+        navigate(`/status/${data.id}`);
       }, 1000);
     },
     onError: (error: Error) => {
@@ -86,8 +104,17 @@ export default function SubmitJob() {
   };
 
   const onSubmit = async (data: SubmitForm) => {
-    const isValid = await validateUrl(data.jobPostUrl);
-    if (!isValid) return;
+    // Only validate URL if using URL input type
+    if (data.inputType === "url" && data.jobPostUrl) {
+      const isValid = await validateUrl(data.jobPostUrl);
+      if (!isValid) return;
+    }
+    
+    // Validate manual JD has content if using manual input
+    if (data.inputType === "manual" && (!data.manualJd || data.manualJd.trim().length === 0)) {
+      form.setError("manualJd", { message: "Please enter a job description" });
+      return;
+    }
     
     submitMutation.mutate(data);
   };
@@ -125,7 +152,7 @@ export default function SubmitJob() {
         <div className="mb-8">
           <h1 className="text-3xl font-semibold mb-2">Submit New Job Application</h1>
           <p className="text-muted-foreground">
-            Enter a job posting URL to generate tailored CV and cover letter documents
+            Enter a job posting URL or paste the job description manually to generate tailored CV and cover letter documents
           </p>
         </div>
 
@@ -169,29 +196,85 @@ export default function SubmitJob() {
 
               <FormField
                 control={form.control}
-                name="jobPostUrl"
+                name="inputType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Job Posting URL</FormLabel>
+                    <FormLabel>Job Description Source</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          {...field}
-                          type="url"
-                          placeholder="https://careers.company.com/job/123"
-                          className="pl-10"
-                          data-testid="input-job-url"
-                        />
-                      </div>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex gap-4"
+                        data-testid="radio-input-type"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="url" id="url" data-testid="radio-url" />
+                          <Label htmlFor="url" className="font-normal cursor-pointer">
+                            From URL
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="manual" id="manual" data-testid="radio-manual" />
+                          <Label htmlFor="manual" className="font-normal cursor-pointer">
+                            Manual Input
+                          </Label>
+                        </div>
+                      </RadioGroup>
                     </FormControl>
-                    <FormDescription>
-                      Paste the URL of any job posting (LinkedIn, Indeed, company careers page, etc.)
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {inputType === "url" ? (
+                <FormField
+                  control={form.control}
+                  name="jobPostUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Posting URL</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            type="url"
+                            placeholder="https://careers.company.com/job/123"
+                            className="pl-10"
+                            data-testid="input-job-url"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Paste the URL of any job posting (LinkedIn, Indeed, company careers page, etc.)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="manualJd"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Paste the job description here...&#10;&#10;Include:&#10;- Job title and company&#10;- Role responsibilities&#10;- Required qualifications&#10;- Preferred skills&#10;- Any other relevant details"
+                          className="min-h-[200px] resize-y"
+                          data-testid="textarea-manual-jd"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter the complete job description manually (copy from job posting)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <div className="flex items-center space-x-4 pt-4">
                 <Button

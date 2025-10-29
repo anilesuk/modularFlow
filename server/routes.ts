@@ -185,10 +185,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validate job posting URL
+  app.get("/api/validate-url", isAuthenticated, async (req, res) => {
+    try {
+      const url = req.query.url as string;
+      if (!url) {
+        return res.status(400).json({ error: "URL parameter required" });
+      }
+
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch (error) {
+        return res.status(400).json({ error: "Invalid URL format" });
+      }
+
+      // Check if URL is accessible (basic check)
+      // In production, you might want to actually fetch the URL to verify it exists
+      res.json({ valid: true });
+    } catch (error) {
+      console.error("URL validation error:", error);
+      res.status(500).json({ error: "Failed to validate URL" });
+    }
+  });
+
   // Submit a new job application for processing
   app.post("/api/runs", isAuthenticated, async (req, res) => {
     try {
-      const { candidateId, jobPostingUrl } = req.body;
+      const { candidateId, jobPostUrl, manualJd, inputType } = req.body;
+
+      // Validate that either jobPostUrl or manualJd is provided
+      if (inputType === "url" && !jobPostUrl) {
+        return res.status(400).json({ error: "Job posting URL is required when using URL input" });
+      }
+      if (inputType === "manual" && !manualJd) {
+        return res.status(400).json({ error: "Manual job description is required when using manual input" });
+      }
 
       // Validate candidate ownership
       const candidate = await storage.getCandidateById(candidateId);
@@ -196,11 +228,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
+      // Generate idempotency key
+      const idempotencyKey = `${req.user.claims.sub}-${candidateId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
       // Create run with QUEUED status
       const run = await storage.createRun({
         userId: req.user.claims.sub,
         candidateId,
-        jobPostingId: "", // Will be set after scraping
+        jobPostUrl: jobPostUrl || null,
+        manualJd: manualJd || null,
+        idempotencyKey,
         status: "QUEUED",
       });
 
@@ -209,11 +246,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "RUN_CREATED",
         resourceType: "run",
         resourceId: run.id,
-        details: { candidateId, jobPostingUrl },
+        details: { candidateId, jobPostUrl, manualJd: manualJd ? "provided" : null },
       });
 
       // Start async processing (non-blocking)
-      processJobApplication(run.id, candidate, jobPostingUrl, req.user.claims.sub).catch(error => {
+      processJobApplication(run.id, candidate, jobPostUrl, manualJd, req.user.claims.sub).catch(error => {
         console.error("Processing error:", error);
         storage.updateRunStatus(run.id, "FAILED", error.message);
       });
@@ -287,26 +324,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
 async function processJobApplication(
   runId: string,
   candidate: any,
-  jobPostingUrl: string,
+  jobPostingUrl: string | null | undefined,
+  manualJd: string | null | undefined,
   userId: string
 ) {
   try {
-    // STAGE 1: Scrape job posting
-    await storage.updateRunStatus(runId, "SCRAPING");
-    const scrapedJob = await scraper.scrapeJobPosting(jobPostingUrl);
-    
-    const jobPosting = await storage.createJobPosting({
-      userId,
-      url: jobPostingUrl,
-      company: scrapedJob.company,
-      role: scrapedJob.role,
-      location: scrapedJob.location,
-      description: scrapedJob.description,
-      rawHtml: scrapedJob.rawHtml,
-    });
+    let jobPosting: any;
 
-    // Update run with job posting ID
-    await storage.updateRun(runId, { jobPostingId: jobPosting.id });
+    if (manualJd) {
+      // STAGE 1: Use manual JD (skip scraping)
+      await storage.updateRunStatus(runId, "ANALYZING");
+      
+      // Parse manual JD to extract basic info (simple heuristic)
+      const lines = manualJd.split('\n').filter(l => l.trim());
+      const firstLine = lines[0] || "Unknown Role";
+      
+      // Create payload with job posting data
+      const payload = {
+        company: "From Manual Input",
+        role: firstLine.substring(0, 100), // Use first line as role
+        location: "Not Specified",
+        description: manualJd,
+        requirements: [],
+        responsibilities: [],
+        benefits: [],
+        salary: null,
+        remote: null,
+        url: "manual-input",
+      };
+      
+      jobPosting = await storage.createJobPosting({
+        runId,
+        payload: payload as any,
+      });
+    } else if (jobPostingUrl) {
+      // STAGE 1: Scrape job posting from URL
+      await storage.updateRunStatus(runId, "SCRAPING");
+      const scrapedJob = await scraper.scrapeJobPosting(jobPostingUrl);
+      
+      // Create payload with scraped job posting data
+      const payload = {
+        company: scrapedJob.company,
+        role: scrapedJob.role,
+        location: scrapedJob.location,
+        description: scrapedJob.description,
+        requirements: scrapedJob.requirements || [],
+        responsibilities: scrapedJob.responsibilities || [],
+        benefits: scrapedJob.benefits || [],
+        salary: scrapedJob.salary || null,
+        remote: scrapedJob.remote || null,
+        url: jobPostingUrl,
+      };
+      
+      jobPosting = await storage.createJobPosting({
+        runId,
+        payload: payload as any,
+      });
+    } else {
+      throw new Error("Either jobPostingUrl or manualJd must be provided");
+    }
+
+    // Update run with job posting ID (jobPosting uses runId as primary key)
+    await storage.updateRun(runId, { jobPostingId: runId });
 
     // STAGE 2: Generate draft (Pass 1)
     await storage.updateRunStatus(runId, "DRAFT_PASS1");
