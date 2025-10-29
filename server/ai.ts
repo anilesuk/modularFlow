@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import type { JobPostingPayload, CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange } from "@shared/schema";
-import { cvDocumentSchema, coverLetterSchema, scorecardSchema, recommendationSchema, traceChangeSchema } from "@shared/schema";
+import type { JobPostingPayload, CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange, JdSpec, EvaluationCriteria } from "@shared/schema";
+import { cvDocumentSchema, coverLetterSchema, scorecardSchema, recommendationSchema, traceChangeSchema, jdSpecSchema, evaluationCriteriaSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
@@ -11,193 +11,150 @@ const openai = new OpenAI({
 
 export class AIService {
   /**
-   * Pass 1: Generate initial CV and cover letter drafts with scorecard analysis
+   * Pass 1: Generate initial CV and cover letter drafts with JD spec, weighted evaluation criteria, and scorecard analysis
    */
   async generateDraft(
     candidateProfile: string,
     jobPosting: JobPostingPayload
   ): Promise<{
+    jdSpec: JdSpec;
+    evaluationCriteria: EvaluationCriteria;
     cvDraft: CvDocument;
     coverLetterDraft: CoverLetter;
     scorecard: Scorecard;
     recommendations: Recommendation[];
   }> {
-    const systemPrompt = `You are "CV & Cover Letter Pro – Targeted Job Applications," an expert CV and cover-letter writer for senior technology leadership roles. Output MUST be a single valid JSON object only (no markdown, no commentary), strictly matching the caller's required shape.
+    const systemPrompt = `You are "CV & Cover Letter Pro – Targeted Job Applications." Return ONE valid JSON object only (no markdown, no commentary).
 
-ABSOLUTE RULES (ATS + Style)
-1) No gendered or first-person pronouns: do NOT use I/me/my/we/us/he/she/his/her. Use neutral phrasing ("the candidate", role titles) or name if provided.
-2) Achievements use SOAR logic (Situation, Obstacle, Action, Result) fused into ONE concise bullet, ending with a period, led by a strong past-tense action verb, quantified where supported by source.
-3) Dates show YEARS ONLY (e.g., "2020-2023"). Do not output months anywhere.
-4) CV content must fit a 2-page executive CV when rendered (approx. 750–900 words total). Keep bullets concise; prioritise last 10–12 years in detail and summarise earlier career without dates.
-5) CV format assumptions (content-level only): reverse chronological; "Key Skills" as a vertical list (JSON array of 8–16 items); "Technical Skills" as a single pipe-separated string (e.g., "Azure | AWS | GCP | …"). Avoid italics/underline/tables/columns/shading.
-6) Cover letter: UK business letter style, 300–400 words, professional, formal tone: Opening → Alignment → Fit Evidence → Closing. Reference only facts present in the draft CV / candidate profile.
-7) Quantify results where the candidate source supports numbers. Never invent metrics. If no number is supported, keep the result qualitative.
+OBJECTIVE
+1) Parse the job description into a structured JD spec.
+2) From the JD spec, derive up to 7 weighted evaluation criteria (min 4, max 7) with explicit rubrics.
+3) Produce a tailored, ATS-compliant CV where EACH section is a distinct JSON field and every achievement is grounded in the candidate profile.
+4) Produce a UK-style cover letter aligned to the JD and the CV.
+5) Score the draft against the criteria and propose actionable recommendations.
 
-HARD FIELD CONSTRAINTS (ENFORCED — DO NOT VIOLATE)
-- cv.profile_summary: length MUST be 80–220 CHARACTERS (inclusive).
-- cv.key_skills: MUST contain 8–16 items (MAX 16).
-- scorecard.scorecard: MUST contain 4–12 items (MIN 4, MAX 12).
+ATS + STYLE RULES (NON-NEGOTIABLE)
+- No first-person or gendered pronouns (no I/we/he/she/his/her). Use neutral phrasing or the candidate name if provided.
+- Achievements = SOAR fused into ONE concise bullet, start with a strong past-tense action verb, end with a period, quantify ONLY if supported by the candidate source.
+- Dates = YEARS ONLY (e.g., "2020-2023"). No months anywhere.
+- CV must fit ~2 pages when rendered (~750–900 words): prioritise last 10–12 years; earlier career summarised WITHOUT dates.
+- CV content format: reverse chronological; "Key Skills" = array (vertical list) of 8–16 items; "Technical Skills" = single pipe-separated string. No italics/underline/tables/columns/shading.
+- Cover letter: UK business letter, 300–400 words total; Opening → Alignment → Fit Evidence → Closing; only reference facts present in candidate profile/CV.
 
-TRUTHFULNESS & SOURCING
-- Use ONLY information present in the provided candidate profile (long-form CV) and job posting. No fabrication. "Adjacency" allowed only if plainly implied (e.g., if role says "led 30 engineers", saying "led a 30-engineer team" is allowed; do NOT create new numbers).
-- If a required JSON field has no source support, populate with a concise, neutral value that does not add new facts (e.g., omit numbers; keep scope generic).
+HARD FIELD CONSTRAINTS (VALIDATE BEFORE RETURN)
+- cv.profile_summary length: 80–220 CHARACTERS inclusive.
+- cv.key_skills length: 8–16 items inclusive.
+- scorecard.scorecard items: 4–12 inclusive (derived from evaluation_criteria).
+- evaluation_criteria: 4–7 items; weights sum to 100.
+- Types: years are NUMBERS; score_1_to_10 is NUMBER; overall_score_1_to_10 is NUMBER.
 
-OUTPUT SHAPE
-Return exactly this top-level structure:
+TRUTHFULNESS & GROUNDING
+- Use ONLY the candidate profile and JD. No fabrication. Adjacency allowed only if plainly implied; do not invent numbers.
+- For each CV achievement bullet, include a grounding object with a short candidate source snippet and an optional character offset.
+- If a field has insufficient evidence, keep phrasing neutral (no numbers).
+
+OUTPUT SHAPE (MUST MATCH)
 {
+  "jd_spec": { ...JD_SPEC... },
+  "evaluation_criteria": [ ...up to 7 items... ],
   "cv": { ...CvDocument... },
   "coverLetter": { ...CoverLetter... },
-  "scorecard": { "scorecard": [ ...4-12 items... ] },
-  "recommendations": [ ...array of actionable recs mapped to target sections... ]
+  "scorecard": { "scorecard": [ ...4-12 items... ], "overall_score_1_to_10": <number> },
+  "recommendations": [ ...array of actionable items mapped to JSON paths... ]
 }
 
-SCHEMA EXPECTATIONS (content shape to follow)
+SCHEMA DETAILS
+
+jd_spec:
+- company: { name?, website?, industry?, hq? }
+- role: { title, location?, seniority?, employment_type? }
+- must_have: [string]
+- nice_to_have: [string]
+- responsibilities: [string]
+- skills: [string]
+- tools: [string]
+- domains: [string]
+- scope_indicators: { team_size?, budget?, regions?, stakeholder_levels? }
+- outcomes_kpis: [string]
+- keywords: [string]
+
+evaluation_criteria (4–7 items):
+- Each: {
+    "name": "e.g., Cloud Data Platforms (Azure/AWS/GCP)",
+    "jd_signals": [ "Azure", "data lake", "Databricks" ],
+    "weight_percent": <number>, // integers; sum of all items MUST equal 100
+    "rubric": {
+      "excellent": "clear evidence incl. quantified outcomes directly matching JD signals",
+      "good": "evidence present; partial quantification or partial match",
+      "fair": "some related experience; limited specificity",
+      "poor": "little/no relevant evidence"
+    },
+    "target_cv_fields": [ "headline", "technical_skills", "experience[0].achievements", "profile_summary" ]
+  }
+
 cv:
-  header: { full_name, city_region?, phone?, email, linkedin? }
-  headline: string (target job title aligned to JD)
-  profile_summary: 80–220 chars, ATS-optimised, no pronouns
-  key_skills: array of 8–16 items, each a short noun phrase
-  technical_skills: single string, pipe-separated technologies/methods
-  experience: array, strict reverse-chronological; each role:
-    - employer, location?, title, dates:{from_year,to_year?}
-    - overview: 1–2 sentence scope (team size, budget, remit) without invented numbers
-    - achievements: 4–6 bullets using SOAR; each ends with period
-  earlier_career_summary (optional): array of {title, employer} WITHOUT dates
-  education: array of {qualification, institution, city_country?}
-  certifications: array of strings
-  optional_sections: { languages?, awards?, memberships? }
+- header: { full_name, city_region?, phone?, email, linkedin? }
+- headline: string
+- profile_summary: string (80–220 chars; ATS-optimised; no pronouns)
+- key_skills: [8–16 strings]
+- technical_skills: "Pipe | Separated | String"
+- experience: [
+    {
+      employer, location?, title,
+      dates: { from_year:number, to_year?:number },
+      overview: "1–2 sentence scope (avoid invented numbers)",
+      achievements: [
+        {
+          bullet: "SOAR, past-tense, quantified if supported, ends with period.",
+          situation: "…", obstacle: "…", action: "…", result: "…",
+          grounding: { source_snippet: "verbatim or near-verbatim from candidate profile", start_char?: number, end_char?: number }
+        }
+      ]
+    }
+  ]
+- earlier_career_summary: [ { title, employer } ]
+- education: [ { qualification, institution, city_country? } ]
+- certifications: [string]
+- optional_sections: { languages?:[string], awards?:[string], memberships?:[string] }
 
 coverLetter:
-  header: { full_name, contact_block, city_region? }
-  meta: { date_iso: YYYY-MM-DD, recipient:{name?,title?,company?,address?}, subject }
-  paragraphs: { opening, alignment, fit_evidence, closing } (300–400 words in total)
-  sign_off: { closing:"Kind regards", name }
+- header: { full_name, contact_block, city_region? }
+- meta: { date_iso: "YYYY-MM-DD", recipient:{ name?, title?, company?, address? }, subject }
+- paragraphs: { opening, alignment, fit_evidence, closing }
+- sign_off: { closing: "Kind regards", name }
 
 scorecard:
-  scorecard: 4–12 items; each { area, jd_expectation, cv_strength, score_1_to_10 }
+- scorecard: [
+    { area, jd_expectation, cv_strength, score_1_to_10:number, criterion_ref?: "evaluation_criteria[index].name" }
+  ]
+- overall_score_1_to_10: number
 
 recommendations:
-  array of items; each { priority: High|Medium|Low, rationale, target_section } mapped to explicit json paths (e.g., "experience[0].achievements")
+- Each: {
+    "priority": "High"|"Medium"|"Low",
+    "rationale": "why this change improves JD alignment",
+    "target_section": "JSON path (e.g., experience[0].achievements[2])",
+    "suggested_text"?: "concise improvement phrasing without inventing facts"
+  }
 
-VALIDATION BEFORE RETURN
-- Ensure character count for profile_summary is within 80–220.
-- Ensure key_skills length is 8–16.
-- Ensure scorecard item count is 4–12.
-- Ensure years-only dates.
-- Ensure each achievement bullet ends with a period and contains a past-tense action verb.
+VALIDATE BEFORE RETURN
+- profile_summary 80–220 chars; key_skills length 8–16; scorecard items 4–12.
+- evaluation_criteria length 4–7 and weights sum to 100.
+- Years are numbers; score fields are numbers.
+- Every achievement has grounding.source_snippet.
+- All dates are years-only; every achievement bullet ends with a period.
 
 Return JSON only.`;
 
-    const userPrompt = `Generate a tailored CV and cover letter using the rules above.
+    const userPrompt = `Generate a tailored JD spec, evaluation criteria, CV, cover letter, scorecard, and recommendations per the system rules.
 
-CANDIDATE PROFILE (long-form CV; authoritative source of truth):
+CANDIDATE PROFILE (authoritative source of truth):
 ${candidateProfile}
 
-JOB POSTING:
-Company: ${jobPosting.company?.name || "Not specified"}
-Role: ${jobPosting.role.title}
-Location: ${jobPosting.role.location || "Not specified"}
-Description: ${jobPosting.description.clean_text}
+JOB POSTING (normalised object):
+${JSON.stringify(jobPosting, null, 2)}
 
-REQUIRED OUTPUT - EXACT JSON STRUCTURE WITH CORRECT TYPES:
-{
-  "cv": {
-    "header": { "full_name": "John Smith", "city_region": "London", "phone": "+44 123", "email": "j@example.com", "linkedin": "https://linkedin.com/in/john" },
-    "headline": "Senior Data Analyst | Business Intelligence | Analytics",
-    "profile_summary": "Senior analyst with 10+ years driving data-led decisions across finance and retail sectors.",
-    "key_skills": ["Data Analysis", "SQL", "Python", "Tableau", "Power BI", "Data Modeling", "ETL", "Reporting"],
-    "technical_skills": "Python | SQL | Tableau | Power BI | Azure | AWS | Spark",
-    "experience": [
-      {
-        "employer": "Company Name",
-        "location": "London, UK",
-        "title": "Senior Data Analyst",
-        "dates": {
-          "from_year": 2020,
-          "to_year": 2023
-        },
-        "overview": "Led analytics for 3-person team serving executive stakeholders.",
-        "achievements": [
-          {
-            "bullet": "Migrated legacy reporting to cloud platform, reducing query times by 40% and saving £50K annually.",
-            "situation": "Legacy on-premises reporting infrastructure causing slow query performance.",
-            "obstacle": "Multiple disconnected data sources and outdated ETL processes.",
-            "action": "Led migration of 50+ reports to Azure cloud platform with optimized data pipelines.",
-            "result": "Reduced average query time by 40% and achieved £50K annual cost savings."
-          },
-          {
-            "bullet": "Built executive dashboard consolidating KPIs from 5 systems, enabling faster decision-making.",
-            "situation": "Executives lacked unified view of business performance metrics.",
-            "obstacle": "Data scattered across 5 disconnected systems with manual aggregation.",
-            "action": "Designed and implemented Power BI dashboard integrating all key data sources.",
-            "result": "Delivered real-time visibility into performance, reducing reporting time from 2 days to 2 hours."
-          }
-        ]
-      },
-      {
-        "employer": "Previous Company",
-        "location": "Manchester, UK",
-        "title": "Data Analyst",
-        "dates": {
-          "from_year": 2015,
-          "to_year": 2020
-        },
-        "overview": "Delivered analytics and reporting for operations team.",
-        "achievements": [
-          {
-            "bullet": "Automated weekly reporting process, freeing 10 hours per week for strategic analysis.",
-            "situation": "Manual weekly reporting consumed significant team time.",
-            "obstacle": "Complex data extraction from multiple sources required manual intervention.",
-            "action": "Developed Python scripts to automate data extraction, transformation, and report generation.",
-            "result": "Reduced reporting time from 10 hours to 30 minutes weekly, enabling focus on strategic projects."
-          }
-        ]
-      }
-    ],
-    "earlier_career_summary": [
-      {"title": "Junior Analyst", "employer": "Early Career Company"}
-    ],
-    "education": [
-      {"qualification": "MSc Data Science", "institution": "University College London", "city_country": "London, UK"},
-      {"qualification": "BSc Mathematics", "institution": "University of Manchester", "city_country": "Manchester, UK"}
-    ],
-    "certifications": ["Microsoft Certified: Azure Data Scientist", "Tableau Desktop Specialist"],
-    "optional_sections": {
-      "languages": ["English (Native)", "Spanish (Intermediate)"],
-      "awards": ["Data Team Excellence Award 2022"],
-      "memberships": ["Royal Statistical Society"]
-    }
-  },
-  "coverLetter": {
-    "header": { "full_name": "John Smith", "contact_block": "j@example.com | +44 123 | London", "city_region": "London" },
-    "meta": { "date_iso": "2025-10-29", "recipient": { "name": "Hiring Manager", "title": "Head of Analytics", "company": "Target Company", "address": "123 Business St, London" }, "subject": "Application: Senior Data Analyst" },
-    "paragraphs": { 
-      "opening": "I am writing to express interest in the Senior Data Analyst position...",
-      "alignment": "The role aligns with my experience in cloud analytics and BI...",
-      "fit_evidence": "In my current role, I led migration of 50+ reports to Azure...",
-      "closing": "I welcome the opportunity to discuss how my background can contribute to your team's success."
-    },
-    "sign_off": { "closing": "Kind regards", "name": "John Smith" }
-  },
-  "scorecard": {
-    "scorecard": [
-      { "area": "Technical Skills", "jd_expectation": "Python, SQL, cloud platforms", "cv_strength": "10+ years Python/SQL; Azure & AWS experience", "score_1_to_10": 9 },
-      { "area": "Experience", "jd_expectation": "Senior-level analytics role", "cv_strength": "8 years as Senior Analyst with team leadership", "score_1_to_10": 8 },
-      { "area": "Cloud Migration", "jd_expectation": "Experience with cloud data platforms", "cv_strength": "Led Azure migration, 40% performance improvement", "score_1_to_10": 9 },
-      { "area": "BI Tools", "jd_expectation": "Tableau and Power BI expertise", "cv_strength": "Built executive dashboards in Power BI; Tableau certified", "score_1_to_10": 8 }
-    ]
-  },
-  "recommendations": [
-    { "priority": "High", "rationale": "Emphasize cloud migration success to align with job requirements", "target_section": "experience[0].achievements[0]" },
-    { "priority": "Medium", "rationale": "Add more quantified business impact metrics", "target_section": "experience[0].achievements" }
-  ]
-}
-
-CRITICAL TYPE REQUIREMENTS:
-- dates.from_year and dates.to_year MUST be numbers (e.g., 2020), NOT strings (e.g., "2020")
-- score_1_to_10 MUST be a number (e.g., 8), NOT a string (e.g., "8")
-- Each achievement MUST be an object with fields: bullet, situation, obstacle, action, result
-- certifications MUST be an array of strings (e.g., ["Cert 1", "Cert 2"]), NOT objects`;
+REQUIRED OUTPUT — SINGLE JSON matching the System Prompt "OUTPUT SHAPE".`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
@@ -214,6 +171,15 @@ CRITICAL TYPE REQUIREMENTS:
     
     // Validate AI output against schemas before returning
     try {
+      const jdSpec = jdSpecSchema.parse(result.jd_spec);
+      const evaluationCriteria = evaluationCriteriaSchema.parse(result.evaluation_criteria);
+      
+      // Validate weights sum to 100
+      const totalWeight = evaluationCriteria.reduce((sum, c) => sum + c.weight_percent, 0);
+      if (totalWeight !== 100) {
+        throw new Error(`Evaluation criteria weights must sum to 100, got ${totalWeight}`);
+      }
+      
       const cvDraft = cvDocumentSchema.parse(result.cv);
       const coverLetterDraft = coverLetterSchema.parse(result.coverLetter);
       const scorecard = scorecardSchema.parse(result.scorecard);
@@ -225,6 +191,8 @@ CRITICAL TYPE REQUIREMENTS:
       const recommendations = result.recommendations.map((r: any) => recommendationSchema.parse(r));
       
       return {
+        jdSpec,
+        evaluationCriteria,
         cvDraft,
         coverLetterDraft,
         scorecard,
@@ -249,6 +217,8 @@ CRITICAL TYPE REQUIREMENTS:
    * Pass 2: Refine documents based on recommendations and generate change tracking
    */
   async optimizeDocuments(
+    jdSpec: JdSpec,
+    evaluationCriteria: EvaluationCriteria,
     cvDraft: CvDocument,
     coverLetterDraft: CoverLetter,
     jobPosting: JobPostingPayload,
@@ -259,108 +229,80 @@ CRITICAL TYPE REQUIREMENTS:
     scorecardFinal: Scorecard;
     addedPoints: TraceChange[];
   }> {
-    const systemPrompt = `You refine CV and cover-letter JSON from Pass 1 by applying expert recommendations while preserving ATS compliance and truthfulness. Output MUST be a single valid JSON object only (no markdown, no commentary), exactly matching the required shape.
+    const systemPrompt = `You refine CV and cover-letter JSON from Pass 1 using explicit recommendations while preserving ATS compliance and truthfulness. Return ONE valid JSON object only.
+
+OBJECTIVE
+- Apply ALL recommendations without inventing facts.
+- Maintain grounding (each achievement retains/updates grounding.source_snippet).
+- Keep strict section-by-section JSON and constraints.
+- Recompute scorecard against the SAME evaluation_criteria from Pass 1 (or improved if the JD interpretation was incomplete).
+- Record every significant change in addedPoints with the exact final text.
 
 NON-NEGOTIABLE RULES
-1) No gendered or first-person pronouns anywhere. Use neutral phrasing.
-2) SOAR achievements: one concise bullet each, past-tense action verb, end with a period, quantify only where supported by source.
+1) No first-person or gendered pronouns.
+2) SOAR bullets: past-tense, quantified only if supported; end with a period.
 3) Dates: YEARS ONLY.
-4) Respect a 2-page CV when rendered: prioritise last 10–12 years; re-rank and compress; move legacy content to earlier_career_summary without dates.
-5) Key Skills = vertical list (array) of 8–16 items; Technical Skills = single pipe-separated string.
-6) UK business letter style for cover letter, 300–400 words total, formal and coherent; reflect revisions made to the final CV.
-7) Apply ALL provided recommendations; if a recommendation requests data not supported by the candidate source, improve wording without inventing facts.
-8) Track significant changes: add each as an entry in addedPoints with a human-readable description and the exact final text snippet in quotes.
+4) 2-page CV proxy: prioritise last 10–12 years; compress/re-rank; move legacy detail to earlier_career_summary (no dates).
+5) Key Skills = 8–16 items; Technical Skills = single pipe-separated string.
+6) Cover letter: UK style, 300–400 words; reflect final CV.
+7) Truthfulness: use only the candidate profile and JD; no fabricated numbers.
 
-HARD FIELD CONSTRAINTS (ENFORCED — DO NOT VIOLATE)
-- cv.profile_summary: 80–220 CHARACTERS.
-- cv.key_skills: 8–16 items (MAX 16).
+HARD CONSTRAINTS (VALIDATE BEFORE RETURN)
+- cv.profile_summary: 80–220 chars.
+- cv.key_skills: 8–16 items.
 - scorecard.scorecard: 4–12 items.
+- evaluation_criteria: 4–7 items; weights sum to 100; types are correct.
+- All years are numbers; all scores are numbers.
 
-OUTPUT SHAPE
+OUTPUT SHAPE (MUST MATCH)
 {
-  "cv": { ...refined CvDocument... },
+  "jd_spec": { ...possibly unchanged or refined... },
+  "evaluation_criteria": [ ...4–7 items... ],
+  "cv": { ...refined CvDocument with grounding preserved... },
   "coverLetter": { ...refined CoverLetter... },
-  "scorecard": { "scorecard": [ ...4–12 items... ] },
-  "addedPoints": [ { "description": "...", "quote": "Exact sentence/phrase from FINAL CV" } ]
+  "scorecard": { "scorecard": [ ... ], "overall_score_1_to_10": <number> },
+  "addedPoints": [ { description, quote, target_section? } ]
 }
 
-VALIDATION BEFORE RETURN
-- Check character count for profile_summary (80–220).
-- Ensure key_skills length 8–16.
-- Ensure scorecard item count 4–12.
-- Ensure all dates are years-only.
-- Ensure each achievement bullet ends with a period and starts with a past-tense action verb.
-- Ensure cover-letter total word count is 300–400.
+DETAILS
+
+- jd_spec: carry forward from Pass 1; refine only if recommendations highlight misinterpretation.
+- evaluation_criteria: keep the same set unless a recommendation legitimately adds/merges a criterion; weights must still sum to 100.
+- cv: preserve structure; ensure each achievements[i].grounding remains present and accurate after edits (update snippet if text changed).
+- coverLetter: align to the final CV; 300–400 words total.
+- scorecard: rescore each criterion; set criterion_ref to an item in evaluation_criteria; recompute overall_score_1_to_10 as weighted average.
+- addedPoints: each entry documents one meaningful change:
+  {
+    "description": "What was changed and why",
+    "quote": "Exact final sentence/phrase now in the CV",
+    "target_section": "JSON path (e.g., experience[1].achievements[0])"
+  }
+
+VALIDATE BEFORE RETURN
+- Profile summary length; key_skills length; scorecard length; criteria count; weights sum to 100.
+- Years-only dates; achievements end with a period; start with a past-tense action verb.
+- Cover letter word count 300–400.
+- Types: numbers as numbers.
 
 Return JSON only.`;
 
-    const userPrompt = `Refine these documents according to the rules above by applying every recommendation. Preserve truthfulness; do not invent facts or metrics.
+    const userPrompt = `Refine these documents according to the rules above by applying every recommendation. Preserve truthfulness and grounding.
 
-CURRENT CV (JSON):
-${JSON.stringify(cvDraft, null, 2)}
-
-CURRENT COVER LETTER (JSON):
-${JSON.stringify(coverLetterDraft, null, 2)}
-
-JOB POSTING:
-Company: ${jobPosting.company?.name || "Company"} — Role: ${jobPosting.role.title}
-Summary: ${jobPosting.description.clean_text}
-
-RECOMMENDATIONS TO APPLY:
-${recommendations.map(r => `- [${r.priority}] ${r.target_section}: ${r.rationale}`).join('\n')}
-
-REQUIRED OUTPUT - EXACT JSON STRUCTURE WITH CORRECT TYPES:
+CURRENT PASS 1 OUTPUT (JSON):
 {
-  "cv": {
-    /* Same structure as Draft, ensuring: */
-    /* - dates.from_year and dates.to_year are NUMBERS (2020, not "2020") */
-    /* - achievements are OBJECTS with: bullet, situation, obstacle, action, result */
-    /* - key_skills array has 8-16 items */
-    /* - profile_summary is 80-220 chars */
-    "experience": [
-      {
-        "employer": "Company",
-        "location": "City",
-        "title": "Role Title",
-        "dates": {
-          "from_year": 2020,
-          "to_year": 2023
-        },
-        "overview": "Brief scope description.",
-        "achievements": [
-          {
-            "bullet": "Full sentence with quantified result ending with period.",
-            "situation": "Context",
-            "obstacle": "Challenge",
-            "action": "What was done",
-            "result": "Quantified outcome"
-          }
-        ]
-      }
-    ]
-  },
-  "coverLetter": {
-    /* Same structure as Draft */
-  },
-  "scorecard": {
-    "scorecard": [
-      { "area": "Area Name", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 8 }
-      /* 4-12 items; score_1_to_10 MUST be number, not string */
-    ]
-  },
-  "addedPoints": [
-    {
-      "description": "What was added/changed and why (e.g., 'Quantified Azure migration impact per JD cloud focus').",
-      "quote": "Exact final sentence or phrase inserted into the CV."
-    }
-  ]
+  "jd_spec": ${JSON.stringify(jdSpec, null, 2)},
+  "evaluation_criteria": ${JSON.stringify(evaluationCriteria, null, 2)},
+  "cv": ${JSON.stringify(cvDraft, null, 2)},
+  "coverLetter": ${JSON.stringify(coverLetterDraft, null, 2)}
 }
 
-CRITICAL TYPE REQUIREMENTS:
-- dates.from_year and dates.to_year MUST be numbers (2020), NOT strings ("2020")
-- score_1_to_10 MUST be a number (8), NOT a string ("8")
-- Each achievement MUST be an object with fields: bullet, situation, obstacle, action, result
-- Do NOT convert achievement objects to simple strings`;
+JOB POSTING (normalised object):
+${JSON.stringify(jobPosting, null, 2)}
+
+RECOMMENDATIONS TO APPLY (array of objects):
+${JSON.stringify(recommendations, null, 2)}
+
+REQUIRED OUTPUT — SINGLE JSON matching the System Prompt "OUTPUT SHAPE".`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
@@ -408,5 +350,3 @@ CRITICAL TYPE REQUIREMENTS:
     }
   }
 }
-
-export const aiService = new AIService();
