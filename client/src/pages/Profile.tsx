@@ -30,6 +30,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertCandidateSchema, type Candidate, type InsertCandidate } from "@shared/schema";
+import { z } from "zod";
 
 export default function Profile() {
   const { toast } = useToast();
@@ -41,8 +42,12 @@ export default function Profile() {
     queryKey: ["/api/candidates"],
   });
 
-  const form = useForm<InsertCandidate>({
-    resolver: zodResolver(insertCandidateSchema),
+  // Frontend form schema omits userId (added by backend)
+  const frontendCandidateSchema = insertCandidateSchema.omit({ userId: true });
+  type FrontendCandidate = z.infer<typeof frontendCandidateSchema>;
+
+  const form = useForm<FrontendCandidate>({
+    resolver: zodResolver(frontendCandidateSchema),
     defaultValues: {
       fullName: "",
       email: "",
@@ -57,11 +62,9 @@ export default function Profile() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: InsertCandidate) => {
-      return await apiRequest("/api/candidates", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+    mutationFn: async (data: FrontendCandidate) => {
+      const res = await apiRequest("POST", "/api/candidates", data);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
@@ -82,11 +85,9 @@ export default function Profile() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: InsertCandidate }) => {
-      return await apiRequest(`/api/candidates/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+    mutationFn: async ({ id, data }: { id: string; data: FrontendCandidate }) => {
+      const res = await apiRequest("PATCH", `/api/candidates/${id}`, data);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
@@ -109,9 +110,8 @@ export default function Profile() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/candidates/${id}`, {
-        method: "DELETE",
-      });
+      const res = await apiRequest("DELETE", `/api/candidates/${id}`);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/candidates"] });
@@ -162,7 +162,7 @@ export default function Profile() {
     setShowDialog(true);
   };
 
-  const onSubmit = (data: InsertCandidate) => {
+  const onSubmit = (data: FrontendCandidate) => {
     if (editingCandidate) {
       updateMutation.mutate({ id: editingCandidate.id, data });
     } else {
