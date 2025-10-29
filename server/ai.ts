@@ -173,14 +173,13 @@ CRITICAL TYPE REQUIREMENTS:
 - certifications MUST be an array of strings (e.g., ["Cert 1", "Cert 2"]), NOT objects`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      model: "gpt-4o-mini", // Using gpt-4o-mini for cost-effective testing; can upgrade to gpt-4o or gpt-5 later
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 8192,
-      // Note: gpt-5 only supports default temperature (1), custom values not allowed
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
@@ -337,7 +336,7 @@ ${JSON.stringify(recommendations)}
 Return refined JSON with addedPoints tracking changes.`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5",
+      model: "gpt-4o-mini", // Using gpt-4o-mini for cost-effective testing; can upgrade to gpt-4o or gpt-5 later
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
