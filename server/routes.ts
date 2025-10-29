@@ -395,10 +395,10 @@ async function processJobApplication(
 
     await storage.createDraft({
       runId,
-      cvDraftJsonb: draftResult.cvDraft as any,
-      coverLetterDraftJsonb: draftResult.coverLetterDraft as any,
+      cvJsonb: draftResult.cvDraft as any,
+      coverLetterJsonb: draftResult.coverLetterDraft as any,
       scorecardPass1Jsonb: draftResult.scorecard as any,
-      recommendationsJsonb: draftResult.recommendations as any,
+      recommendationsPass1Jsonb: draftResult.recommendations as any,
     });
 
     // STAGE 3: Optimize (Pass 2)
@@ -412,8 +412,8 @@ async function processJobApplication(
 
     await storage.createFinal({
       runId,
-      cvFinalJsonb: optimizedResult.cvFinal as any,
-      coverLetterFinalJsonb: optimizedResult.coverLetterFinal as any,
+      cvJsonb: optimizedResult.cvFinal as any,
+      coverLetterJsonb: optimizedResult.coverLetterFinal as any,
       scorecardPass2Jsonb: optimizedResult.scorecardFinal as any,
       addedPointsJsonb: optimizedResult.addedPoints as any,
     });
