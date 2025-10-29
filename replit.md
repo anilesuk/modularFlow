@@ -10,6 +10,25 @@
 
 ## Recent Changes
 
+### 2025-10-29 - AI Schema Validation Fixes ✅
+- **Problem Fixed**: Manual JD submissions were failing with "Processing Failed" errors
+  - AI was generating profile_summary with 294 chars (max 220)
+  - AI was generating 19 key_skills items (max 16)
+  - AI was generating fewer than 4 scorecard items (min 4)
+
+- **Solution**: Updated AI prompts in both `generateDraft` and `optimizeDocuments`:
+  - Added CRITICAL FIELD LENGTH CONSTRAINTS section to system prompts
+  - Explicitly stated: profile_summary (80-220 chars), key_skills (8-16 items), scorecard (4-12 items)
+  - Updated user prompt examples to show compliant output (4+ scorecard items, clear character/item limits)
+  - Reinforced constraints with comments like "MUST be 80-220 characters (no more than 220!)"
+
+- **Testing**: End-to-end test passed successfully
+  - Manual JD submission completes all pipeline stages (QUEUED → ANALYZING → DRAFT → OPTIMIZING → VALIDATING → RENDERING → COMPLETED)
+  - Scorecard generates with 6 items (within 4-12 range)
+  - All schema validations pass without errors
+
+- **Architect Review**: PASS - Prompts now explicitly convey all schema limits and prevent validation failures
+
 ### 2025-01-29 - Document Generation Complete ✅
 - **Word Document Generation Fixes**:
   - Completely rewrote `server/docGen.ts` to match new CV and cover letter schemas
