@@ -33,6 +33,10 @@ CRITICAL ATS COMPLIANCE RULES:
 6. Professional, formal tone throughout
 7. Quantify achievements with numbers and percentages where possible
 
+CRITICAL FIELD LENGTH CONSTRAINTS (ENFORCED):
+- profile_summary: MUST be 80-220 characters (not one character more!)
+- key_skills: MUST contain 8-16 items (MAXIMUM 16 items, not one more!)
+
 You must output valid JSON matching the provided schemas.`;
 
     const userPrompt = `Generate a tailored CV and cover letter for this candidate:
@@ -57,8 +61,8 @@ REQUIRED OUTPUT (valid JSON matching these exact schemas):
       "linkedin": "https://linkedin.com/in/username"
     },
     "headline": "One-line professional headline (e.g., 'Senior Data Analyst | Business Intelligence | Process Optimization')",
-    "profile_summary": "80-220 character professional summary tailored to the role",
-    "key_skills": ["skill1", "skill2", "skill3", "skill4", "skill5", "skill6", "skill7", "skill8"],
+    "profile_summary": "MUST be 80-220 characters (no more than 220!) - concise professional summary tailored to the role",
+    "key_skills": ["8-16 skills required - MAXIMUM 16 skills, no more!"],
     "technical_skills": "Comma-separated list of technical tools and technologies",
     "experience": [
       {
@@ -209,6 +213,10 @@ Apply ALL recommendations while maintaining ATS compliance:
 - Professional, quantified achievements
 - Track all significant changes made
 
+CRITICAL FIELD LENGTH CONSTRAINTS (ENFORCED):
+- profile_summary: MUST be 80-220 characters (not one character more!)
+- key_skills: MUST contain 8-16 items (MAXIMUM 16 items, not one more!)
+
 Output valid JSON matching the provided schemas.`;
 
     const userPrompt = `Refine these documents based on the recommendations:
@@ -227,7 +235,12 @@ ${recommendations.map(r => `- [${r.priority}] ${r.target_section}: ${r.rationale
 
 REQUIRED OUTPUT (valid JSON):
 {
-  "cv": { ... refined CV document ... },
+  "cv": {
+    // CRITICAL CONSTRAINTS:
+    // - profile_summary: MUST be 80-220 characters (no more than 220!)
+    // - key_skills: MUST be 8-16 items (MAXIMUM 16, no more!)
+    ... refined CV document ...
+  },
   "coverLetter": { ... refined cover letter ... },
   "scorecard": {
     "scorecard": [
