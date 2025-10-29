@@ -99,38 +99,105 @@ Role: ${jobPosting.role.title}
 Location: ${jobPosting.role.location || "Not specified"}
 Description: ${jobPosting.description.clean_text}
 
-REQUIRED OUTPUT (single JSON object exactly in this shape):
+REQUIRED OUTPUT - EXACT JSON STRUCTURE WITH CORRECT TYPES:
 {
   "cv": {
-    "header": { "full_name": "...", "city_region": "...", "phone": "...", "email": "...", "linkedin": "..." },
-    "headline": "...",
-    "profile_summary": "80–220 characters",
-    "key_skills": ["8–16 items max"],
-    "technical_skills": "Pipe | Separated | Items",
-    "experience": [ /* reverse-chron roles with years-only dates; 4–6 SOAR bullets per recent role; last 10–12 years detailed; earlier roles summarised */ ],
-    "earlier_career_summary": [ /* optional {title, employer} WITHOUT dates */ ],
-    "education": [ /* {qualification, institution, city_country?} */ ],
-    "certifications": [ /* strings */ ],
-    "optional_sections": { "languages": [/* strings */], "awards": [/* strings */], "memberships": [/* strings */] }
+    "header": { "full_name": "John Smith", "city_region": "London", "phone": "+44 123", "email": "j@example.com", "linkedin": "https://linkedin.com/in/john" },
+    "headline": "Senior Data Analyst | Business Intelligence | Analytics",
+    "profile_summary": "Senior analyst with 10+ years driving data-led decisions across finance and retail sectors.",
+    "key_skills": ["Data Analysis", "SQL", "Python", "Tableau", "Power BI", "Data Modeling", "ETL", "Reporting"],
+    "technical_skills": "Python | SQL | Tableau | Power BI | Azure | AWS | Spark",
+    "experience": [
+      {
+        "employer": "Company Name",
+        "location": "London, UK",
+        "title": "Senior Data Analyst",
+        "dates": {
+          "from_year": 2020,
+          "to_year": 2023
+        },
+        "overview": "Led analytics for 3-person team serving executive stakeholders.",
+        "achievements": [
+          {
+            "bullet": "Migrated legacy reporting to cloud platform, reducing query times by 40% and saving £50K annually.",
+            "situation": "Legacy on-premises reporting infrastructure causing slow query performance.",
+            "obstacle": "Multiple disconnected data sources and outdated ETL processes.",
+            "action": "Led migration of 50+ reports to Azure cloud platform with optimized data pipelines.",
+            "result": "Reduced average query time by 40% and achieved £50K annual cost savings."
+          },
+          {
+            "bullet": "Built executive dashboard consolidating KPIs from 5 systems, enabling faster decision-making.",
+            "situation": "Executives lacked unified view of business performance metrics.",
+            "obstacle": "Data scattered across 5 disconnected systems with manual aggregation.",
+            "action": "Designed and implemented Power BI dashboard integrating all key data sources.",
+            "result": "Delivered real-time visibility into performance, reducing reporting time from 2 days to 2 hours."
+          }
+        ]
+      },
+      {
+        "employer": "Previous Company",
+        "location": "Manchester, UK",
+        "title": "Data Analyst",
+        "dates": {
+          "from_year": 2015,
+          "to_year": 2020
+        },
+        "overview": "Delivered analytics and reporting for operations team.",
+        "achievements": [
+          {
+            "bullet": "Automated weekly reporting process, freeing 10 hours per week for strategic analysis.",
+            "situation": "Manual weekly reporting consumed significant team time.",
+            "obstacle": "Complex data extraction from multiple sources required manual intervention.",
+            "action": "Developed Python scripts to automate data extraction, transformation, and report generation.",
+            "result": "Reduced reporting time from 10 hours to 30 minutes weekly, enabling focus on strategic projects."
+          }
+        ]
+      }
+    ],
+    "earlier_career_summary": [
+      {"title": "Junior Analyst", "employer": "Early Career Company"}
+    ],
+    "education": [
+      {"qualification": "MSc Data Science", "institution": "University College London", "city_country": "London, UK"},
+      {"qualification": "BSc Mathematics", "institution": "University of Manchester", "city_country": "Manchester, UK"}
+    ],
+    "certifications": ["Microsoft Certified: Azure Data Scientist", "Tableau Desktop Specialist"],
+    "optional_sections": {
+      "languages": ["English (Native)", "Spanish (Intermediate)"],
+      "awards": ["Data Team Excellence Award 2022"],
+      "memberships": ["Royal Statistical Society"]
+    }
   },
   "coverLetter": {
-    "header": { "full_name": "...", "contact_block": "...", "city_region": "..." },
-    "meta": { "date_iso": "YYYY-MM-DD", "recipient": { "name": "...", "title": "...", "company": "...", "address": "..." }, "subject": "Application: ..." },
-    "paragraphs": { "opening": "...", "alignment": "...", "fit_evidence": "...", "closing": "..." },
-    "sign_off": { "closing": "Kind regards", "name": "..." }
+    "header": { "full_name": "John Smith", "contact_block": "j@example.com | +44 123 | London", "city_region": "London" },
+    "meta": { "date_iso": "2025-10-29", "recipient": { "name": "Hiring Manager", "title": "Head of Analytics", "company": "Target Company", "address": "123 Business St, London" }, "subject": "Application: Senior Data Analyst" },
+    "paragraphs": { 
+      "opening": "I am writing to express interest in the Senior Data Analyst position...",
+      "alignment": "The role aligns with my experience in cloud analytics and BI...",
+      "fit_evidence": "In my current role, I led migration of 50+ reports to Azure...",
+      "closing": "I welcome the opportunity to discuss how my background can contribute to your team's success."
+    },
+    "sign_off": { "closing": "Kind regards", "name": "John Smith" }
   },
   "scorecard": {
     "scorecard": [
-      { "area": "Industry Fit", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 7 },
-      { "area": "Tech Stack", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 8 }
-      /* total 4–12 items */
+      { "area": "Technical Skills", "jd_expectation": "Python, SQL, cloud platforms", "cv_strength": "10+ years Python/SQL; Azure & AWS experience", "score_1_to_10": 9 },
+      { "area": "Experience", "jd_expectation": "Senior-level analytics role", "cv_strength": "8 years as Senior Analyst with team leadership", "score_1_to_10": 8 },
+      { "area": "Cloud Migration", "jd_expectation": "Experience with cloud data platforms", "cv_strength": "Led Azure migration, 40% performance improvement", "score_1_to_10": 9 },
+      { "area": "BI Tools", "jd_expectation": "Tableau and Power BI expertise", "cv_strength": "Built executive dashboards in Power BI; Tableau certified", "score_1_to_10": 8 }
     ]
   },
   "recommendations": [
-    { "priority": "High", "rationale": "…", "target_section": "experience[0].achievements" }
-    /* actionable and mapped to exact JSON paths */
+    { "priority": "High", "rationale": "Emphasize cloud migration success to align with job requirements", "target_section": "experience[0].achievements[0]" },
+    { "priority": "Medium", "rationale": "Add more quantified business impact metrics", "target_section": "experience[0].achievements" }
   ]
-}`;
+}
+
+CRITICAL TYPE REQUIREMENTS:
+- dates.from_year and dates.to_year MUST be numbers (e.g., 2020), NOT strings (e.g., "2020")
+- score_1_to_10 MUST be a number (e.g., 8), NOT a string (e.g., "8")
+- Each achievement MUST be an object with fields: bullet, situation, obstacle, action, result
+- certifications MUST be an array of strings (e.g., ["Cert 1", "Cert 2"]), NOT objects`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
@@ -242,17 +309,43 @@ Summary: ${jobPosting.description.clean_text}
 RECOMMENDATIONS TO APPLY:
 ${recommendations.map(r => `- [${r.priority}] ${r.target_section}: ${r.rationale}`).join('\n')}
 
-REQUIRED OUTPUT (single JSON object):
+REQUIRED OUTPUT - EXACT JSON STRUCTURE WITH CORRECT TYPES:
 {
   "cv": {
-    /* refined CV with re-ranked, compressed achievements; years-only dates; last 10–12 years detailed; earlier career summary without dates; Key Skills (8–16); Technical Skills pipe-separated; no pronouns; SOAR bullets ending with periods */
+    /* Same structure as Draft, ensuring: */
+    /* - dates.from_year and dates.to_year are NUMBERS (2020, not "2020") */
+    /* - achievements are OBJECTS with: bullet, situation, obstacle, action, result */
+    /* - key_skills array has 8-16 items */
+    /* - profile_summary is 80-220 chars */
+    "experience": [
+      {
+        "employer": "Company",
+        "location": "City",
+        "title": "Role Title",
+        "dates": {
+          "from_year": 2020,
+          "to_year": 2023
+        },
+        "overview": "Brief scope description.",
+        "achievements": [
+          {
+            "bullet": "Full sentence with quantified result ending with period.",
+            "situation": "Context",
+            "obstacle": "Challenge",
+            "action": "What was done",
+            "result": "Quantified outcome"
+          }
+        ]
+      }
+    ]
   },
   "coverLetter": {
-    /* refined to reflect the final CV; UK style; 300–400 words total */
+    /* Same structure as Draft */
   },
   "scorecard": {
     "scorecard": [
-      /* 4–12 updated items showing improved alignment */
+      { "area": "Area Name", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 8 }
+      /* 4-12 items; score_1_to_10 MUST be number, not string */
     ]
   },
   "addedPoints": [
@@ -260,9 +353,14 @@ REQUIRED OUTPUT (single JSON object):
       "description": "What was added/changed and why (e.g., 'Quantified Azure migration impact per JD cloud focus').",
       "quote": "Exact final sentence or phrase inserted into the CV."
     }
-    /* Include one entry per significant change */
   ]
-}`;
+}
+
+CRITICAL TYPE REQUIREMENTS:
+- dates.from_year and dates.to_year MUST be numbers (2020), NOT strings ("2020")
+- score_1_to_10 MUST be a number (8), NOT a string ("8")
+- Each achievement MUST be an object with fields: bullet, situation, obstacle, action, result
+- Do NOT convert achievement objects to simple strings`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
