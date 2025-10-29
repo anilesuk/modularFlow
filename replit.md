@@ -1,7 +1,37 @@
 # CV Tailoring Pro - AI-Powered Application System
 
 ## Overview
-CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and cover letters to specific job postings. Its core purpose is to ensure strict ATS compliance, maintain privacy security, and optimize documents through a two-pass AI process. The application is fully functional, encompassing all seven frontend pages, a robust backend API, database integration, authentication, and AI services. It supports both URL-based job description scraping and manual job description input, with all features passing end-to-end testing. The project aims to provide a professional, secure, and efficient solution for job seekers.
+CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and cover letters to specific job postings. Its core purpose is to ensure strict ATS compliance, maintain privacy security, and optimize documents through a two-pass AI process with mandatory achievement grounding enforcement. The application features all seven frontend pages, a robust backend API, database integration, authentication, and AI services. It supports both URL-based job description scraping and manual job description input. The project provides a professional, secure, and efficient solution for job seekers with cost-effective AI model usage (gpt-4o-mini).
+
+## Recent Changes (Latest Session)
+### ✅ Grounding Enforcement Implementation (COMPLETE)
+- **Runtime Validation**: Added hard error checking for missing grounding on ALL achievements
+- **Strengthened AI Prompts**: Added prominent 🚨 warning at top of Phase 1A prompt with exact example
+- **Field Name Alignment**: Fixed achievement field from "text" to "bullet" to match schema
+- **Validation Status**: AI now consistently provides grounding.source_snippet; system blocks ungrounded content
+
+### ✅ Schema Alignment Fixes (CV - COMPLETE)
+- **criteria_coverage**: Fixed to use criterion_ref, sections_addressing, strength fields
+- **jd_alignment (experience)**: Aligned to use criteria_hit, jd_signals_used arrays
+- **jd_alignment (CV-level)**: Implemented headline_signals, profile_signals, etc.
+- **Achievement structure**: Corrected to use "bullet" field with mandatory grounding object
+
+### ✅ Auto-Repair Enhancements
+- **CV Structure**: Handles both nested (`result.cv.*`) and flat CV objects from AI
+- **Key Skills Trimming**: Enforces 8-16 limit, trims excess items
+- **Profile Summary**: Enforces 80-220 character limit
+- **Weight Normalization**: Zero-division guard prevents crashes when weights sum to zero
+
+### ⚠️ Known Issues
+- **Cover Letter Schema**: Mismatches remain in sign_off field and recipient structure
+- **Impact**: Cover letter generation may fail validation; CV generation working correctly
+- **Status**: Non-blocking for core grounding enforcement objective
+
+### Testing Insights
+- Conducted extensive E2E testing with real job submissions
+- Confirmed AI provides grounding when prompted with visual emphasis
+- Validated runtime enforcement blocks ungrounded achievements
+- Using gpt-4o-mini for cost-effective testing per requirements
 
 ## User Preferences
 - All data encrypted at rest and in transit
