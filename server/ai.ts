@@ -1,5 +1,7 @@
 import OpenAI from "openai";
-import type { JobPosting, CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange } from "@shared/schema";
+import type { JobPostingPayload, CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange } from "@shared/schema";
+import { cvDocumentSchema, coverLetterSchema, scorecardSchema, recommendationSchema, traceChangeSchema } from "@shared/schema";
+import { fromZodError } from "zod-validation-error";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 const openai = new OpenAI({
@@ -13,7 +15,7 @@ export class AIService {
    */
   async generateDraft(
     candidateProfile: string,
-    jobPosting: JobPosting
+    jobPosting: JobPostingPayload
   ): Promise<{
     cvDraft: CvDocument;
     coverLetterDraft: CoverLetter;
@@ -39,34 +41,86 @@ CANDIDATE PROFILE:
 ${candidateProfile}
 
 JOB POSTING:
-Company: ${jobPosting.company}
-Role: ${jobPosting.role}
-Location: ${jobPosting.location || "Not specified"}
-Description: ${jobPosting.description}
+Company: ${jobPosting.company?.name || "Not specified"}
+Role: ${jobPosting.role.title}
+Location: ${jobPosting.role.location || "Not specified"}
+Description: ${jobPosting.description.clean_text}
 
-REQUIRED OUTPUT (valid JSON):
+REQUIRED OUTPUT (valid JSON matching these exact schemas):
 {
   "cv": {
-    "contact": { "name": "...", "email": "...", "phone": "...", "location": "..." },
-    "summary": "2-3 sentence professional summary tailored to the role",
+    "header": {
+      "full_name": "Full Name",
+      "city_region": "City, Region",
+      "phone": "+44 1234 567890",
+      "email": "email@example.com",
+      "linkedin": "https://linkedin.com/in/username"
+    },
+    "headline": "One-line professional headline (e.g., 'Senior Data Analyst | Business Intelligence | Process Optimization')",
+    "profile_summary": "80-220 character professional summary tailored to the role",
+    "key_skills": ["skill1", "skill2", "skill3", "skill4", "skill5", "skill6", "skill7", "skill8"],
+    "technical_skills": "Comma-separated list of technical tools and technologies",
     "experience": [
       {
-        "company": "...",
-        "role": "...",
-        "years": "2020-2023",
-        "highlights": ["SOAR-formatted achievement 1", "SOAR-formatted achievement 2"]
+        "employer": "Company Name",
+        "location": "City, Country",
+        "title": "Job Title",
+        "dates": {
+          "from_year": 2020,
+          "to_year": 2023
+        },
+        "overview": "Brief role overview",
+        "achievements": [
+          {
+            "bullet": "Complete achievement statement with SOAR",
+            "situation": "Context/situation",
+            "obstacle": "Challenge faced",
+            "action": "Actions taken",
+            "result": "Quantified outcome"
+          }
+        ]
       }
     ],
-    "education": [{ "institution": "...", "degree": "...", "years": "2016-2020" }],
-    "skills": ["skill1", "skill2", ...],
-    "certifications": ["cert1", ...]
+    "education": [
+      {
+        "qualification": "Degree Name",
+        "institution": "University Name",
+        "city_country": "City, Country"
+      }
+    ],
+    "certifications": ["Certification 1", "Certification 2"],
+    "optional_sections": {
+      "languages": ["English (Native)", "Spanish (Fluent)"],
+      "awards": ["Award 1"],
+      "memberships": ["Professional Body 1"]
+    }
   },
   "coverLetter": {
-    "greeting": "Dear Hiring Manager,",
-    "opening": "Opening paragraph expressing interest...",
-    "body": "2-3 paragraphs highlighting relevant experience and skills...",
-    "closing": "Closing paragraph with call to action...",
-    "signature": "Sincerely,\\n[Candidate Name]"
+    "header": {
+      "full_name": "Full Name",
+      "contact_block": "Email | Phone | Location",
+      "city_region": "City, Region"
+    },
+    "meta": {
+      "date_iso": "2025-01-29",
+      "recipient": {
+        "name": "Hiring Manager Name",
+        "title": "Title",
+        "company": "Company Name",
+        "address": "Address if available"
+      },
+      "subject": "Re: Application for [Job Title]"
+    },
+    "paragraphs": {
+      "opening": "Opening paragraph expressing interest and how you learned about the role",
+      "alignment": "Paragraph explaining alignment with company mission and role requirements",
+      "fit_evidence": "Paragraph with specific evidence of qualifications and achievements",
+      "closing": "Closing paragraph with call to action and availability"
+    },
+    "sign_off": {
+      "closing": "Yours sincerely",
+      "name": "Full Name"
+    }
   },
   "scorecard": {
     "scorecard": [
@@ -80,9 +134,9 @@ REQUIRED OUTPUT (valid JSON):
   },
   "recommendations": [
     {
-      "area": "Experience Section",
-      "suggestion": "Add more quantified achievements in X area",
-      "priority": "high"
+      "priority": "High",
+      "rationale": "Explanation of why this recommendation matters",
+      "target_section": "Which section of the CV to improve"
     }
   ]
 }`;
@@ -99,12 +153,37 @@ REQUIRED OUTPUT (valid JSON):
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     
-    return {
-      cvDraft: result.cv,
-      coverLetterDraft: result.coverLetter,
-      scorecard: result.scorecard,
-      recommendations: result.recommendations,
-    };
+    // Validate AI output against schemas before returning
+    try {
+      const cvDraft = cvDocumentSchema.parse(result.cv);
+      const coverLetterDraft = coverLetterSchema.parse(result.coverLetter);
+      const scorecard = scorecardSchema.parse(result.scorecard);
+      
+      // Safely validate recommendations array
+      if (!Array.isArray(result.recommendations)) {
+        throw new Error("AI output missing recommendations array");
+      }
+      const recommendations = result.recommendations.map((r: any) => recommendationSchema.parse(r));
+      
+      return {
+        cvDraft,
+        coverLetterDraft,
+        scorecard,
+        recommendations,
+      };
+    } catch (error: any) {
+      console.error("AI output validation failed:", error);
+      console.error("Raw AI output:", JSON.stringify(result, null, 2));
+      
+      // Only use fromZodError for actual ZodErrors
+      if (error?.name === "ZodError") {
+        const validationError = fromZodError(error);
+        throw new Error(`AI generated invalid output: ${validationError.toString()}`);
+      }
+      
+      // Re-throw other errors as-is with context
+      throw new Error(`AI generation error: ${error.message || error}`);
+    }
   }
 
   /**
@@ -113,7 +192,7 @@ REQUIRED OUTPUT (valid JSON):
   async optimizeDocuments(
     cvDraft: CvDocument,
     coverLetterDraft: CoverLetter,
-    jobPosting: JobPosting,
+    jobPosting: JobPostingPayload,
     recommendations: Recommendation[]
   ): Promise<{
     cvFinal: CvDocument;
@@ -141,10 +220,10 @@ CURRENT COVER LETTER:
 ${JSON.stringify(coverLetterDraft, null, 2)}
 
 JOB POSTING:
-${jobPosting.company} - ${jobPosting.role}
+${jobPosting.company?.name || "Company"} - ${jobPosting.role.title}
 
 RECOMMENDATIONS TO APPLY:
-${recommendations.map(r => `- [${r.priority}] ${r.area}: ${r.suggestion}`).join('\n')}
+${recommendations.map(r => `- [${r.priority}] ${r.target_section}: ${r.rationale}`).join('\n')}
 
 REQUIRED OUTPUT (valid JSON):
 {
@@ -175,12 +254,37 @@ REQUIRED OUTPUT (valid JSON):
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     
-    return {
-      cvFinal: result.cv,
-      coverLetterFinal: result.coverLetter,
-      scorecardFinal: result.scorecard,
-      addedPoints: result.addedPoints || [],
-    };
+    // Validate AI output against schemas before returning
+    try {
+      const cvFinal = cvDocumentSchema.parse(result.cv);
+      const coverLetterFinal = coverLetterSchema.parse(result.coverLetter);
+      const scorecardFinal = scorecardSchema.parse(result.scorecard);
+      
+      // Safely validate addedPoints array
+      if (!Array.isArray(result.addedPoints) && result.addedPoints !== undefined) {
+        throw new Error("AI output addedPoints must be an array or undefined");
+      }
+      const addedPoints = (result.addedPoints || []).map((p: any) => traceChangeSchema.parse(p));
+      
+      return {
+        cvFinal,
+        coverLetterFinal,
+        scorecardFinal,
+        addedPoints,
+      };
+    } catch (error: any) {
+      console.error("AI output validation failed:", error);
+      console.error("Raw AI output:", JSON.stringify(result, null, 2));
+      
+      // Only use fromZodError for actual ZodErrors
+      if (error?.name === "ZodError") {
+        const validationError = fromZodError(error);
+        throw new Error(`AI generated invalid output: ${validationError.toString()}`);
+      }
+      
+      // Re-throw other errors as-is with context
+      throw new Error(`AI generation error: ${error.message || error}`);
+    }
   }
 }
 

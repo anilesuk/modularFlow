@@ -391,7 +391,7 @@ async function processJobApplication(
     await storage.updateRunStatus(runId, "DRAFT_PASS1");
     const candidateProfile = `Name: ${candidate.fullName}\nEmail: ${candidate.email}\nSkills: ${candidate.skills}\nExperience: ${candidate.experience}`;
     
-    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting);
+    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any);
 
     await storage.createDraft({
       runId,
@@ -406,7 +406,7 @@ async function processJobApplication(
     const optimizedResult = await aiService.optimizeDocuments(
       draftResult.cvDraft,
       draftResult.coverLetterDraft,
-      jobPosting,
+      jobPosting.payload as any,
       draftResult.recommendations
     );
 
