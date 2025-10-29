@@ -10,6 +10,45 @@
 
 ## Recent Changes
 
+### 2025-10-29 - CRITICAL FIX: AI Hallucination Bug ✅
+- **Problem Fixed**: AI was generating completely fictional work experiences instead of using candidate's actual CV data
+  - Generated CVs contained made-up companies like "ABC Logistics Ltd" and "TechSense Solutions"
+  - Job titles and achievements were fabricated, not based on candidate's real career history
+  - User submitted Chief Data Officer JD but received CV with Operations Manager experiences
+
+- **Root Cause**: In `server/routes.ts` line 392, candidateProfile was constructed using non-existent database fields:
+  ```typescript
+  // WRONG - these fields don't exist in schema!
+  const candidateProfile = `Name: ${candidate.fullName}\nEmail: ${candidate.email}\nSkills: ${candidate.skills}\nExperience: ${candidate.experience}`;
+  ```
+  - `candidate.skills` and `candidate.experience` don't exist in the candidates table schema
+  - Both values were `undefined`, giving AI almost no real candidate data
+  - AI hallucinated fictional experiences to fill the gaps
+
+- **Solution**: Updated candidateProfile to use actual schema fields including complete longformCv:
+  ```typescript
+  const candidateProfile = `
+  CANDIDATE CONTACT INFORMATION:
+  Name: ${candidate.fullName}
+  Email: ${candidate.email}
+  Phone: ${candidate.phone || 'Not provided'}
+  Location: ${candidate.cityRegion || 'Not provided'}
+  LinkedIn: ${candidate.linkedin || 'Not provided'}
+  
+  CANDIDATE'S COMPLETE CV / CAREER HISTORY:
+  ${candidate.longformCv}
+  `.trim();
+  ```
+
+- **Testing**: End-to-end test with realistic Chief Data Officer candidate confirmed fix:
+  - ✅ Generated CV contains actual candidate name "Dr. Sarah Johnson" (not fictional names)
+  - ✅ Real employers: "FinTech Global Ltd", "HealthCare Systems PLC", "Retail Analytics Corp"
+  - ✅ Real job titles: "Chief Data Officer", "VP Data & Analytics", "Senior Data Scientist"
+  - ✅ Real achievements: fraud detection, AWS platform, NHS analytics
+  - ✅ NO hallucinated companies or experiences
+
+- **Architect Review**: PASS - Fix eliminates hallucination by providing full CV data to AI instead of undefined fields
+
 ### 2025-10-29 - AI Schema Validation Fixes ✅
 - **Problem Fixed**: Manual JD submissions were failing with "Processing Failed" errors
   - AI was generating profile_summary with 294 chars (max 220)
