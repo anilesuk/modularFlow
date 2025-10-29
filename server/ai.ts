@@ -174,8 +174,8 @@ ABSOLUTE RULES (ATS + Style):
 - No pronouns (I/me/my/we/us/he/she)
 - SOAR format achievements: Situation, Obstacle, Action, Result in one concise bullet
 - Years only for dates (e.g., "2020-2023"), no months
-- Profile summary: 80-220 characters
-- Key skills: 8-16 items
+- Profile summary: EXACTLY 80-220 characters (strict)
+- key_skills: MUST contain EXACTLY 8-16 items. NEVER exceed 16 items. COUNT CAREFULLY.
 - Each achievement ends with period, led by past-tense action verb
 - Quantify where source supports it
 
@@ -522,7 +522,8 @@ CRITICAL:
 RULES
 - Apply ALL recommendations without inventing facts.
 - No pronouns. Years only. SOAR format. End bullets with period.
-- Profile summary 80-220 chars; key_skills 8-16 items.
+- Profile summary: EXACTLY 80-220 chars (strict).
+- key_skills: MUST contain EXACTLY 8-16 items. NEVER exceed 16 items.
 - Cover letter 300-400 words, UK style.
 - Rescore and include overall_score_1_to_10.
 - Track changes in addedPoints.
