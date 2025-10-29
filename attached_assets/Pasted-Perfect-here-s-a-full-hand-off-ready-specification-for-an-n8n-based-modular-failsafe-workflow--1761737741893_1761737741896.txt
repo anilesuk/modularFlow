@@ -1,0 +1,781 @@
+Perfect—here’s a full, hand-off-ready specification for an **n8n-based, modular, failsafe workflow** that ingests job-post URLs and outputs a tailored CV, cover letter, and “Added/Enhanced Points” list as .docx files—strictly governed by a **single JSON source of truth** and your CV best-practice rules.
+
+---
+
+# 0) High-level blueprint
+
+**Inputs**
+
+* `candidate_id` (UUID)
+* `job_post_url` (string)
+
+**Core Pipelines (as separate n8n workflows)**
+
+1. **INGEST** (Queue + Idempotency)
+2. **SCRAPE & NORMALISE** (JobPosting JSON)
+3. **COMPOSE PASS 1** (Draft CV/CL, Scorecard P1, Recs P1)
+4. **OPTIMISE PASS 2** (Final CV/CL, Scorecard P2, Added Points)
+5. **VALIDATE** (ATS & coherence gates)
+6. **RENDER** (.docx generation)
+7. **PUBLISH** (store artefacts, send output)
+8. **OBSERVE & FAILSAFE** (logging, retries, DLQ)
+
+**External services**
+
+* **Scraper microservice** (Playwright) – deterministic extraction
+* **Renderer microservice** (Python `python-docx`) – .docx build
+* **Model API** (OpenAI Assistants or Chat Completions)
+* **Object Storage** (S3/Azure Blob/GCS)
+* **DB** (Postgres) for runs, artefact metadata, prompts, golden tests
+* **Vector store** (optional) for long-form CV retrieval (e.g., pgvector)
+
+---
+
+# 1) Environments & Secrets
+
+**Environment variables (n8n > Settings > Variables or Secrets Manager)**
+
+* `ENV`: `dev|staging|prod`
+* `OPENAI_API_KEY`
+* `SCRAPER_BASE_URL` (e.g., `https://scraper.svc.local`)
+* `RENDERER_BASE_URL` (e.g., `https://renderer.svc.local`)
+* `STORAGE_BUCKET` (e.g., `cv-artifacts-prod`)
+* `STORAGE_REGION`
+* `STORAGE_ACCESS_KEY_ID`
+* `STORAGE_SECRET_ACCESS_KEY`
+* `POSTGRES_URL`
+* `WEBHOOK_SIGNING_SECRET` (if using inbound webhook)
+* `ALLOWED_ORIGINS` (comma-separated, for CORS on microservices)
+* `DEFAULT_FONT` (`Arial` or `Calibri`)
+* `DEFAULT_FONT_SIZE` (`11`)
+* `DEFAULT_MARGINS_CM` (`2.5`)
+
+**n8n credentials**
+
+* HTTP Request creds for Scraper/Renderer/Storage
+* OpenAI API credentials (native node or HTTP request)
+
+---
+
+# 2) Canonical Data Contracts (JSON Schemas)
+
+> Use **JSON Schema Draft 2020-12**. Store in a Postgres `schemas` table and in repo for versioning.
+
+## 2.1 Run Envelope
+
+```json
+{
+  "$id": "https://example.com/schemas/run-envelope.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["run_id", "candidate_id", "job_posting"],
+  "properties": {
+    "run_id": { "type": "string", "format": "uuid" },
+    "candidate_id": { "type": "string", "format": "uuid" },
+    "job_posting": { "$ref": "job-posting.json" },
+    "draft": {
+      "type": "object",
+      "properties": {
+        "cv": { "$ref": "cv-document.json" },
+        "cover_letter": { "$ref": "cover-letter.json" },
+        "scorecard_pass1": { "$ref": "scorecard.json" },
+        "recommendations_pass1": {
+          "type": "array",
+          "items": { "$ref": "recommendation.json" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "final": {
+      "type": "object",
+      "properties": {
+        "cv": { "$ref": "cv-document.json" },
+        "cover_letter": { "$ref": "cover-letter.json" },
+        "scorecard_pass2": { "$ref": "scorecard.json" },
+        "added_enhanced_points": {
+          "type": "array",
+          "items": { "$ref": "trace-change.json" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "cv_docx_path": { "type": "string" },
+        "cover_letter_docx_path": { "type": "string" },
+        "added_points_docx_path": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## 2.2 JobPosting
+
+```json
+{
+  "$id": "job-posting.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["source_url", "role", "description"],
+  "properties": {
+    "source_url": { "type": "string", "format": "uri" },
+    "company": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "website": { "type": "string" },
+        "industry": { "type": "string" },
+        "hq": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "role": {
+      "type": "object",
+      "required": ["title"],
+      "properties": {
+        "title": { "type": "string" },
+        "location": { "type": "string" },
+        "seniority": { "type": "string" },
+        "employment_type": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "description": {
+      "type": "object",
+      "required": ["clean_text"],
+      "properties": {
+        "raw_html": { "type": "string" },
+        "clean_text": { "type": "string" },
+        "sections": {
+          "type": "object",
+          "properties": {
+            "about_company": { "type": "string" },
+            "responsibilities": { "type": "string" },
+            "requirements_must": { "type": "array", "items": { "type": "string" } },
+            "requirements_nice": { "type": "array", "items": { "type": "string" } },
+            "benefits": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        },
+        "keywords": {
+          "type": "object",
+          "properties": {
+            "skills": { "type": "array", "items": { "type": "string" } },
+            "tools": { "type": "array", "items": { "type": "string" } },
+            "domains": { "type": "array", "items": { "type": "string" } },
+            "certs": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "compensation": {
+      "type": "object",
+      "properties": {
+        "currency": { "type": "string" },
+        "range": {
+          "type": "object",
+          "properties": {
+            "min": { "type": ["number", "null"] },
+            "max": { "type": ["number", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "bonus": { "type": "string" },
+        "other": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "posting_dates": {
+      "type": "object",
+      "properties": {
+        "posted": { "type": "string", "format": "date" },
+        "closing": { "type": "string", "format": "date" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## 2.3 CvDocument (strict ATS format)
+
+```json
+{
+  "$id": "cv-document.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["header", "headline", "profile_summary", "key_skills", "technical_skills", "experience"],
+  "properties": {
+    "header": {
+      "type": "object",
+      "required": ["full_name", "email"],
+      "properties": {
+        "full_name": { "type": "string" },
+        "city_region": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "linkedin": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "headline": { "type": "string" },
+    "profile_summary": { "type": "string", "minLength": 80, "maxLength": 220 },
+    "key_skills": { "type": "array", "items": { "type": "string" }, "minItems": 8, "maxItems": 16 },
+    "technical_skills": { "type": "string" },
+    "experience": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["employer", "title", "dates", "overview", "achievements"],
+        "properties": {
+          "employer": { "type": "string" },
+          "location": { "type": "string" },
+          "title": { "type": "string" },
+          "dates": {
+            "type": "object",
+            "required": ["from_year"],
+            "properties": {
+              "from_year": { "type": "integer", "minimum": 1970, "maximum": 2100 },
+              "to_year": { "type": ["integer", "null"], "minimum": 1970, "maximum": 2100 }
+            },
+            "additionalProperties": false
+          },
+          "overview": { "type": "string" },
+          "achievements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["bullet"],
+              "properties": {
+                "bullet": { "type": "string" },
+                "situation": { "type": "string" },
+                "obstacle": { "type": "string" },
+                "action": { "type": "string" },
+                "result": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "earlier_career_summary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "employer"],
+        "properties": {
+          "title": { "type": "string" },
+          "employer": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "education": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["qualification", "institution"],
+        "properties": {
+          "qualification": { "type": "string" },
+          "institution": { "type": "string" },
+          "city_country": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "certifications": { "type": "array", "items": { "type": "string" } },
+    "publications": { "type": "array", "items": { "type": "string" } },
+    "optional_sections": {
+      "type": "object",
+      "properties": {
+        "languages": { "type": "array", "items": { "type": "string" } },
+        "awards": { "type": "array", "items": { "type": "string" } },
+        "memberships": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## 2.4 CoverLetter
+
+```json
+{
+  "$id": "cover-letter.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["header", "meta", "paragraphs", "sign_off"],
+  "properties": {
+    "header": {
+      "type": "object",
+      "required": ["full_name", "contact_block"],
+      "properties": {
+        "full_name": { "type": "string" },
+        "contact_block": { "type": "string" },
+        "city_region": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "meta": {
+      "type": "object",
+      "required": ["date_iso", "recipient", "subject"],
+      "properties": {
+        "date_iso": { "type": "string", "format": "date" },
+        "recipient": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "title": { "type": "string" },
+            "company": { "type": "string" },
+            "address": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        "subject": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "paragraphs": {
+      "type": "object",
+      "required": ["opening", "alignment", "fit_evidence", "closing"],
+      "properties": {
+        "opening": { "type": "string" },
+        "alignment": { "type": "string" },
+        "fit_evidence": { "type": "string" },
+        "closing": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "sign_off": {
+      "type": "object",
+      "required": ["closing", "name"],
+      "properties": {
+        "closing": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+## 2.5 Scorecard, Recommendation, TraceChange
+
+```json
+{
+  "$id": "scorecard.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["scorecard"],
+  "properties": {
+    "scorecard": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["area", "jd_expectation", "cv_strength", "score_1_to_10"],
+        "properties": {
+          "area": { "type": "string" },
+          "jd_expectation": { "type": "string" },
+          "cv_strength": { "type": "string" },
+          "score_1_to_10": { "type": "integer", "minimum": 1, "maximum": 10 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+```json
+{
+  "$id": "recommendation.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["priority", "rationale", "target_section"],
+  "properties": {
+    "priority": { "type": "string", "enum": ["High", "Medium", "Low"] },
+    "rationale": { "type": "string" },
+    "target_section": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+```
+
+```json
+{
+  "$id": "trace-change.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["description", "quote"],
+  "properties": {
+    "description": { "type": "string" },
+    "quote": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+```
+
+---
+
+# 3) n8n Workflow Suite (modular)
+
+> Each bullet is a node (→) with config. Use **Workflow Call** nodes to orchestrate subflows. All HTTP nodes: **Retries 3, backoff expo (500ms, 2x)**. All workflows attach **run_id** as a header for observability.
+
+## WF-00: Ingest & Queue
+
+**Purpose:** Capture inputs, dedupe, dispatch.
+
+1. **→ Webhook** (`POST /ingest`)
+
+   * Body: `{candidate_id, job_post_url}`. Verify `WEBHOOK_SIGNING_SECRET`.
+2. **→ Function (Idempotency Key)**
+
+   * Compute `idempotency_key = sha256(candidate_id + job_post_url)`.
+3. **→ Postgres (Upsert “runs”)**
+
+   * Table `runs(run_id UUID PK, candidate_id, job_post_url, idempotency_key, status, created_at)`
+   * If exists & status in (`COMPLETED`,`IN_PROGRESS`) → **Stop** with 200 (idempotent).
+4. **→ Set (INIT Status)** `status=QUEUED`
+5. **→ Workflow Call: WF-10 SCRAPE & NORMALISE**
+
+   * Pass `{run_id, candidate_id, job_post_url}`
+
+**Error path:** Error Trigger workflow writes to DLQ (see WF-99).
+
+---
+
+## WF-10: Scrape & Normalise (JobPosting JSON)
+
+**Purpose:** Deterministic parsing independent of LLM.
+
+1. **→ HTTP Request (Scrape)**
+
+   * `GET ${SCRAPER_BASE_URL}/extract?url={{$json.job_post_url}}`
+   * Expects `{raw_html, clean_text, blocks...}`
+2. **→ Function (JD Normaliser)**
+
+   * Map to **JobPosting**: parse `role`, `company`, `sections`, `keywords`.
+3. **→ JSON Schema Validate (Custom Function)**
+
+   * Validate against `job-posting.json`. If invalid → **throw** (handled).
+4. **→ Postgres (Persist job_posting)**
+
+   * Table `job_postings(run_id, jsonb)`
+5. **→ Set (Status Update)** `status=SCRAPED`
+6. **→ Workflow Call: WF-20 COMPOSE PASS 1**
+
+---
+
+## WF-20: Compose Pass 1 (Draft CV/CL + Scorecard P1 + Recs P1)
+
+**Purpose:** Create ATS-compliant first pass using long-form CV & JD.
+
+1. **→ Postgres (Fetch Candidate Profile)**
+
+   * Tables: `candidates`, `candidate_longform_cv` (text or structured), `defaults`.
+2. **→ HTTP Request (LLM: CV Draft)**
+
+   * Prompt **system**: “You are CV & Cover Letter Pro… [embed ATS rules]. Return **CvDocument JSON** only, valid to `cv-document.json`.”
+   * **Input**: JobPosting JSON + long-form CV.
+   * **Output**: Draft CV JSON.
+3. **→ JSON Schema Validate** `cv-document.json`
+4. **→ HTTP Request (LLM: Cover Letter Draft)**
+
+   * “Return **CoverLetter JSON** only, valid to `cover-letter.json` (UK style, 300–400 words).”
+5. **→ JSON Schema Validate** `cover-letter.json`
+6. **→ HTTP Request (LLM: Scorecard + Recs)**
+
+   * “Return `{scorecard_pass1, recommendations_pass1}` adhering to schemas.”
+7. **→ JSON Schema Validate** `scorecard.json` & `recommendation.json`
+8. **→ Postgres (Persist Draft)**
+
+   * Table `drafts(run_id, cv_jsonb, cl_jsonb, scorecard_p1_jsonb, recs_p1_jsonb)`
+9. **→ Set (Status)** `status=DRAFT_P1_READY`
+10. **→ Workflow Call: WF-30 OPTIMISE PASS 2**
+
+**Notes**
+
+* Include anti-hallucination instruction: *“No new facts beyond candidate source; adjacency only if clearly implied.”*
+* Use **OpenAI “JSON mode”** or function calling where available to ensure structured output.
+
+---
+
+## WF-30: Optimise Pass 2 (Apply Recs → Final JSON)
+
+**Purpose:** Apply recommendations, compress to 2 pages, re-rank bullets.
+
+1. **→ HTTP Request (LLM: Pass 2 Updater)**
+
+   * Input: `{draft.cv, draft.cover_letter, job_posting, recommendations_pass1}`
+   * Instruction: *Apply recommendations; enforce ATS rules (2 pages, last 10–12 yrs detailed, earlier career w/out dates); record all changes in `added_enhanced_points` (description + exact final quote); update scorecard to Pass 2.*
+   * Output: `{final.cv, final.cover_letter, scorecard_pass2, added_enhanced_points}`
+2. **→ JSON Schema Validate** `cv-document.json`, `cover-letter.json`, `scorecard.json`, `trace-change.json`
+3. **→ Postgres (Persist Final)**
+
+   * Table `finals(run_id, cv_jsonb, cl_jsonb, scorecard_p2_jsonb, added_points_jsonb)`
+4. **→ Set (Status)** `status=FINAL_JSON_READY`
+5. **→ Workflow Call: WF-40 VALIDATE**
+
+---
+
+## WF-40: Validate (ATS + Coherence)
+
+**Purpose:** Hard fail if any ATS rule violated.
+
+1. **→ Function (ATS Linter)**
+
+   * Checks:
+
+     * **No pronouns** in profile summary and bullets (regex).
+     * **Bullets end with periods**, begin with action verbs.
+     * **Key Skills** array length 8–16 (vertical list in renderer).
+     * **Technical Skills** is pipe-separated string.
+     * **Years only** in dates; right-aligned (rendering responsibility, but flag if months seen).
+     * **2 pages** max for execs (approximate token/line budget for pre-render check).
+     * **No tables/italics/underlines** keywords present.
+2. **→ IF (Any Violation)**
+
+   * **Yes → HTTP Request (LLM: Auto-Repair Pass)** with explicit diff instructions, then re-validate.
+   * **No → proceed**
+3. **→ Postgres (Persist Validation Report)**
+4. **→ Set (Status)** `status=VALIDATED`
+5. **→ Workflow Call: WF-50 RENDER**
+
+---
+
+## WF-50: Render (.docx)
+
+**Purpose:** Deterministic .docx generation from **Final JSON**.
+
+1. **→ HTTP Request (Renderer: CV)**
+
+   * `POST ${RENDERER_BASE_URL}/render/cv`
+   * Body: `{ final.cv, font, font_size, margins_cm }`
+   * Response: `{ path: "s3://…/Name - Final Refined CV.docx" }`
+2. **→ HTTP Request (Renderer: Cover Letter)**
+
+   * `POST ${RENDERER_BASE_URL}/render/cover-letter` (adds date, header, salutation)
+3. **→ HTTP Request (Renderer: Added Points)**
+
+   * `POST ${RENDERER_BASE_URL}/render/added-points`
+4. **→ Postgres (Persist Artefacts)**
+
+   * Table `artifacts(run_id, cv_path, cl_path, added_points_path)`
+5. **→ Set (Status)** `status=RENDERED`
+6. **→ Workflow Call: WF-60 PUBLISH**
+
+---
+
+## WF-60: Publish / Notify
+
+**Purpose:** Store + notify consumer.
+
+1. **→ HTTP Request (Storage Verify/Presign)**
+
+   * Generate **presigned URLs** for 7 days.
+2. **→ Email / Slack / Webhook Reply**
+
+   * Payload includes: presigned URLs, scorecards, and Final JSON snapshot.
+3. **→ Set (Status)** `status=COMPLETED`
+4. **→ Postgres (Update run status)**
+
+---
+
+## WF-99: Error Handling & DLQ
+
+**Purpose:** Centralised failure capture.
+
+1. **→ Error Trigger (n8n built-in)**
+2. **→ Set (Context)** `run_id`, `node`, `stacktrace`, `attempt`
+3. **→ Postgres (Insert into dlq table)**
+4. **→ IF (attempt < 3)**
+
+   * **Wait** (exponential backoff)
+   * **Resume Workflow** from last safe checkpoint (use `Workflow Call` with `resume_at`).
+5. **→ Slack/Email Alert** to on-call with direct link to execution.
+
+---
+
+# 4) Scraper & Renderer Microservices (external to n8n)
+
+## 4.1 Scraper (Playwright; Node or Python)
+
+* `GET /extract?url=` → `{ raw_html, clean_text, blocks: {about_company, responsibilities[], requirements_must[], requirements_nice[], benefits[]}, company, role, compensation, posting_dates }`
+* **Deterministic selectors** for major job boards; fallback to generic heuristics.
+* **PII Redaction** (optional) from logs.
+
+## 4.2 Renderer (Python `python-docx`)
+
+Endpoints:
+
+* `POST /render/cv` → `{path}`
+
+  * Enforce: **Arial/Calibri 10–11**, **margins 2.5cm**, **single column**, **dates right-aligned**, **Key Skills as vertical list**, **Technical Skills pipe-separated**, **page break at end of page 1**.
+* `POST /render/cover-letter` → `{path}`
+
+  * Add header (name + contact), date (ISO), recipient block, subject, sign-off.
+* `POST /render/added-points` → `{path}`
+
+  * Numbered list: `description — “quote”`.
+
+**Storage**: Renderer uploads binaries to S3/Blob and returns canonical `s3://…` paths.
+
+---
+
+# 5) Prompts (minimal but strict)
+
+**System (shared across LLM calls):**
+“You are ‘CV & Cover Letter Pro – Targeted Job Applications’. **Always** follow: ATS format (Arial/Calibri 10–11; 2.5cm margins; reverse chrono; last 10–12 years detailed; earlier career summary without dates; Key Skills vertical list; Technical Skills pipe-separated; no pronouns; SOAR bullets with numbers; 2 pages for CV). No tables/columns/shading/italics/underlines. **Do not invent facts**—use only the candidate long-form CV; adjacency only if clearly implied.”
+
+**Pass 1 – CV**
+“Given `job_posting` and `candidate_longform_cv`, output **valid JSON** exactly matching `cv-document.json`. For each achievement: one SOAR bullet (≤2 lines) ending with a period, including a metric.”
+
+**Pass 1 – Cover Letter**
+“Given `job_posting` and the draft CV, output **valid JSON** to `cover-letter.json`. UK tone, 300–400 words, structure: opening → alignment → fit evidence → closing; reference 2–3 quantified results present in the draft CV.”
+
+**Scorecard + Recs**
+“Return `{scorecard_pass1, recommendations_pass1}` adhering to schemas, with 6–10 areas and 6–12 actionable recommendations mapped to `target_section` paths.”
+
+**Pass 2 Updater**
+“Apply recommendations to the Draft, compress to 2 pages, re-rank achievements by JD priority, update the cover letter accordingly. Output `{final.cv, final.cover_letter, scorecard_pass2, added_enhanced_points}`; for `added_enhanced_points`, include description and the exact sentence/phrase from the **final CV** in quotes.”
+
+**Validator/Repair**
+“If violations are reported, output corrected **Final JSON** only, without commentary.”
+
+---
+
+# 6) Failsafes & Quality Gates
+
+* **Idempotency:** hash URL+candidate to avoid duplicate runs.
+* **Schema Validation at every step** (reject on fail; DLQ).
+* **Exponential retries** on transient HTTP/LLM errors.
+* **Deterministic renderer** (no LLM in rendering).
+* **No fabrication** guardrail in prompts; optional **RAG citation** to long-form CV lines.
+* **Length control:** pre-render token/line budget; final render page-count assertion.
+* **Observability:**
+
+  * All nodes include `run_id` header.
+  * Postgres tables: `runs`, `job_postings`, `drafts`, `finals`, `artifacts`, `dlq`, `audit_logs`.
+  * Store all LLM prompts/outputs for audit (redact PII).
+* **Security:** secrets in n8n credentials; microservices accept only requests with `X-Run-Id` + HMAC signature.
+
+---
+
+# 7) Database Schema (Postgres sketch)
+
+```sql
+create table runs (
+  run_id uuid primary key,
+  candidate_id uuid not null,
+  job_post_url text not null,
+  idempotency_key text unique not null,
+  status text not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table job_postings (
+  run_id uuid primary key references runs(run_id) on delete cascade,
+  payload jsonb not null,
+  created_at timestamptz default now()
+);
+
+create table drafts (
+  run_id uuid primary key references runs(run_id) on delete cascade,
+  cv_jsonb jsonb not null,
+  cl_jsonb jsonb not null,
+  scorecard_p1_jsonb jsonb not null,
+  recs_p1_jsonb jsonb not null,
+  created_at timestamptz default now()
+);
+
+create table finals (
+  run_id uuid primary key references runs(run_id) on delete cascade,
+  cv_jsonb jsonb not null,
+  cl_jsonb jsonb not null,
+  scorecard_p2_jsonb jsonb not null,
+  added_points_jsonb jsonb not null,
+  created_at timestamptz default now()
+);
+
+create table artifacts (
+  run_id uuid primary key references runs(run_id) on delete cascade,
+  cv_path text not null,
+  cl_path text not null,
+  added_points_path text not null,
+  created_at timestamptz default now()
+);
+
+create table dlq (
+  id bigserial primary key,
+  run_id uuid,
+  node text,
+  attempt int,
+  error text,
+  payload jsonb,
+  created_at timestamptz default now()
+);
+```
+
+---
+
+# 8) n8n Implementation Notes
+
+* **Workflow Call** nodes: pass a compact payload (`run_id`, `candidate_id`, and the previous step’s outputs by reference via Postgres). This avoids huge JSON hops.
+* **Split In Batches**: if you want to process multiple URLs per request.
+* **IF Nodes**: gate flows on status or validation results.
+* **Code Nodes**: only for small transforms (mapping, hashing, regex pronoun check). Keep business logic in microservices or LLM.
+* **Execution mode**: queue executions; set concurrency limits per environment.
+
+---
+
+# 9) Testing & Release
+
+**Fixtures**
+
+* 10 representative job URLs across boards (LinkedIn, Greenhouse, Workday…).
+* 3 candidate long-forms (short, medium, very long).
+
+**Golden Runs**
+
+* Store expected Final JSON snapshots (`/goldens/<hash>.json`). After changes, run regression to compare structure + key fields.
+
+**Load Test**
+
+* 100 runs with fake URLs (scraper mocked) to validate retries, DLQ, throughput.
+
+**Acceptance Criteria**
+
+* 100% schema validation pass.
+* CV renders to 2 pages (±5% line wrap variance allowed).
+* No pronouns in bullets/summary.
+* Cover letter 300–400 words.
+
+---
+
+# 10) Optional Enhancements
+
+* **Admin Panel (simple):** CRUD for runs, re-queue from DLQ, download artefacts.
+* **Scoring Dashboard:** Track Pass1→Pass2 deltas by area.
+* **Style Dial:** Conservative ↔ Bold phrasing (prompt parameter).
+* **Partner/Ecosystem tags:** boost alignment when JD mentions AWS/Azure/Databricks/Informatica.
+* **Auto company research:** tiny context block from official website (strictly 1–2 lines) for CL opening—behind a toggle to avoid hallucination.
+
+---
+
