@@ -146,15 +146,90 @@ VALIDATE BEFORE RETURN
 
 Return JSON only.`;
 
-    const userPrompt = `Generate a tailored JD spec, evaluation criteria, CV, cover letter, scorecard, and recommendations per the system rules.
+    const userPrompt = `Generate a tailored JD spec, evaluation criteria, CV, cover letter, scorecard, and recommendations.
 
 CANDIDATE PROFILE (authoritative source of truth):
 ${candidateProfile}
 
-JOB POSTING (normalised object):
-${JSON.stringify(jobPosting, null, 2)}
+JOB POSTING:
+Company: ${jobPosting.company?.name || "Not specified"}
+Role: ${jobPosting.role.title}
+Location: ${jobPosting.role.location || "Not specified"}
+Description: ${jobPosting.description.clean_text}
 
-REQUIRED OUTPUT — SINGLE JSON matching the System Prompt "OUTPUT SHAPE".`;
+REQUIRED OUTPUT — Return a single JSON object with this exact structure:
+{
+  "jd_spec": {
+    "company": { "name": "Company Name", "industry": "Technology" },
+    "role": { "title": "Senior Engineer", "location": "London" },
+    "must_have": ["Skill 1", "Skill 2"],
+    "nice_to_have": ["Skill 3"],
+    "responsibilities": ["Responsibility 1", "Responsibility 2"],
+    "skills": ["Python", "AWS"],
+    "tools": ["Docker", "Kubernetes"],
+    "domains": ["Cloud", "Data"],
+    "scope_indicators": { "team_size": "5-10 engineers" },
+    "outcomes_kpis": ["Reduce latency by 50%"],
+    "keywords": ["cloud", "scalability"]
+  },
+  "evaluation_criteria": [
+    {
+      "name": "Technical Skills Alignment",
+      "jd_signals": ["Python", "AWS", "cloud"],
+      "weight_percent": 30,
+      "rubric": {
+        "excellent": "10+ years Python, AWS certifications, proven cloud architecture",
+        "good": "5+ years Python, AWS experience, cloud projects",
+        "fair": "Some Python, basic cloud knowledge",
+        "poor": "Limited or no relevant technical skills"
+      },
+      "target_cv_fields": ["technical_skills", "key_skills", "experience"]
+    }
+  ],
+  "cv": {
+    "header": { "full_name": "John Smith", "email": "j@example.com" },
+    "headline": "Senior Software Engineer",
+    "profile_summary": "Experienced engineer with 10+ years in cloud and Python development.",
+    "key_skills": ["Python", "AWS", "Docker", "Kubernetes", "CI/CD", "Agile", "Leadership", "Architecture"],
+    "technical_skills": "Python | AWS | Docker | Kubernetes | Terraform",
+    "experience": [{
+      "employer": "Tech Company",
+      "title": "Senior Engineer",
+      "dates": { "from_year": 2020, "to_year": 2023 },
+      "overview": "Led cloud migration for 5-person team.",
+      "achievements": [{
+        "bullet": "Migrated legacy infrastructure to AWS, reducing costs by 40%.",
+        "situation": "Legacy infrastructure causing high costs",
+        "action": "Led AWS migration using Terraform and Docker",
+        "result": "Reduced infrastructure costs by 40%",
+        "grounding": { "source_snippet": "migrated systems to AWS cloud platform" }
+      }]
+    }],
+    "education": [{ "qualification": "BSc Computer Science", "institution": "University" }],
+    "certifications": ["AWS Solutions Architect"]
+  },
+  "coverLetter": {
+    "header": { "full_name": "John Smith", "contact_block": "j@example.com" },
+    "meta": { "date_iso": "2025-10-29", "recipient": { "company": "Company" }, "subject": "Application: Senior Engineer" },
+    "paragraphs": { "opening": "I am writing...", "alignment": "The role aligns...", "fit_evidence": "In my role...", "closing": "I welcome..." },
+    "sign_off": { "closing": "Kind regards", "name": "John Smith" }
+  },
+  "scorecard": {
+    "scorecard": [
+      { "area": "Technical Skills", "jd_expectation": "Python, AWS", "cv_strength": "10 years Python/AWS", "score_1_to_10": 9, "criterion_ref": "Technical Skills Alignment" }
+    ],
+    "overall_score_1_to_10": 8.5
+  },
+  "recommendations": [
+    { "priority": "High", "rationale": "Emphasize cloud migration", "target_section": "experience[0].achievements[0]", "suggested_text": "Led AWS migration reducing costs by 40%" }
+  ]
+}
+
+CRITICAL: Return ONLY the JSON object. Ensure:
+- evaluation_criteria has 4-7 items with weights summing to exactly 100
+- All year fields are numbers, not strings
+- All score fields are numbers, not strings
+- Every achievement has a grounding object with source_snippet`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
