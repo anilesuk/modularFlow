@@ -295,7 +295,7 @@ export const cvDocumentSchema = z.object({
         source_snippet: z.string(),
         start_char: z.number().optional(),
         end_char: z.number().optional(),
-      }),
+      }).optional(),
     })),
   })).min(1),
   earlier_career_summary: z.array(z.object({

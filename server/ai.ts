@@ -63,15 +63,7 @@ cv:
   experience: array, strict reverse-chronological; each role:
     - employer, location?, title, dates:{from_year,to_year?}
     - overview: 1–2 sentence scope (team size, budget, remit) without invented numbers
-    - achievements: 4–6 bullets using SOAR; each:
-      {
-        bullet: "Complete achievement ending with period.",
-        situation: "Context",
-        obstacle: "Challenge faced",
-        action: "Actions taken",
-        result: "Outcome achieved",
-        grounding: { source_snippet: "Quote from candidate CV showing this achievement" }
-      }
+    - achievements: 4–6 bullets using SOAR; each ends with period
   earlier_career_summary (optional): array of {title, employer} WITHOUT dates
   education: array of {qualification, institution, city_country?}
   certifications: array of strings
@@ -96,7 +88,6 @@ VALIDATION BEFORE RETURN
 - Ensure scorecard item count is 4–12.
 - Ensure years-only dates.
 - Ensure each achievement bullet ends with a period and contains a past-tense action verb.
-- Include grounding.source_snippet for EVERY achievement.
 - Include overall_score_1_to_10 in scorecard.
 
 Return JSON only.`;
@@ -136,8 +127,7 @@ REQUIRED OUTPUT - EXACT JSON STRUCTURE WITH CORRECT TYPES:
             "situation": "Legacy on-premises reporting infrastructure causing slow query performance.",
             "obstacle": "Multiple disconnected data sources and outdated ETL processes.",
             "action": "Led migration of 50+ reports to Azure cloud platform with optimized data pipelines.",
-            "result": "Reduced average query time by 40% and achieved £50K annual cost savings.",
-            "grounding": { "source_snippet": "migrated 50+ reports to Azure reducing query times" }
+            "result": "Reduced average query time by 40% and achieved £50K annual cost savings."
           }
         ]
       }
