@@ -227,6 +227,19 @@ RULES:
   ): Promise<CvDocument> {
     const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
 
+🚨🚨🚨 CRITICAL REQUIREMENT - READ FIRST 🚨🚨🚨
+EVERY SINGLE ACHIEVEMENT **MUST** INCLUDE A GROUNDING OBJECT WITH source_snippet.
+NO EXCEPTIONS. THE SYSTEM WILL REJECT THE ENTIRE CV IF EVEN ONE ACHIEVEMENT LACKS GROUNDING.
+
+Example achievement with required grounding:
+{
+  "bullet": "Led migration of legacy system to microservices architecture reducing latency by 40%.",
+  "grounding": {
+    "source_snippet": "Led migration of legacy system to microservices",
+    "confidence": "high"
+  }
+}
+
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
@@ -239,9 +252,12 @@ NON-NEGOTIABLE ATS + STYLE
 
 GROUNDING & ALIGNMENT (MANDATORY)
 - Every achievement MUST include a "grounding" object with "source_snippet" taken verbatim from the candidate profile.
-- Include "jd_alignment" at each role to show which JD signals/criteria are covered.
-- Include "jd_alignment" at CV root level mapping sections to JD signals.
-- Include "criteria_coverage" list mapping each evaluation criterion to CV fields that evidence it.
+- Include "jd_alignment" at each experience entry: { criteria_hit: string[], jd_signals_used: string[] }
+  - criteria_hit: evaluation criteria names covered in this role
+  - jd_signals_used: JD terms/phrases addressed in this role
+- Include "jd_alignment" at CV root level: { headline_signals?: string[], profile_signals?: string[], key_skills_signals?: string[], technical_skills_signals?: string[] }
+- Include "criteria_coverage" array with objects: { criterion_ref: string, sections_addressing: string[], strength: "strong"|"moderate"|"weak" }
+  Each item maps an evaluation criterion to which CV sections address it and how strongly.
 
 VALIDATE BEFORE RETURN
 - profile_summary 80–220 chars; key_skills length 8–16.

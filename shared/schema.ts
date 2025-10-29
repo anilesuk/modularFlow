@@ -331,9 +331,9 @@ export const cvDocumentSchema = z.object({
     technical_skills_signals: z.array(z.string()).optional(),
   }).optional(), // Section-level JD alignment tracking
   criteria_coverage: z.array(z.object({
-    criterion: z.string(), // evaluation criterion name
-    covered: z.boolean(),
-    evidence_fields: z.array(z.string()), // JSON paths where criterion is evidenced
+    criterion_ref: z.string(), // Reference to evaluation criterion
+    sections_addressing: z.array(z.string()), // CV sections that address this criterion
+    strength: z.enum(["strong", "moderate", "weak"]), // How strongly the CV addresses this criterion
   })).optional(),
 });
 
