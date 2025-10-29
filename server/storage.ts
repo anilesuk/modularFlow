@@ -146,8 +146,8 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async updateRunStatus(id: string, status: string, errorMsg?: string | null): Promise<Run> {
-    return this.updateRun(id, { status, errorMsg });
+  async updateRunStatus(id: string, status: string, errorMessage?: string | null): Promise<Run> {
+    return this.updateRun(id, { status, errorMessage });
   }
 
   // Drafts

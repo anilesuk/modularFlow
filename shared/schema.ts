@@ -92,10 +92,14 @@ export const jobPostings = pgTable("job_postings", {
 });
 
 export type JobPosting = typeof jobPostings.$inferSelect;
+export const insertJobPostingSchema = createInsertSchema(jobPostings).omit({ createdAt: true });
+export type InsertJobPosting = z.infer<typeof insertJobPostingSchema>;
 
 // Draft documents - Pass 1 outputs
 export const drafts = pgTable("drafts", {
   runId: uuid("run_id").primaryKey().references(() => runs.id, { onDelete: 'cascade' }),
+  jdSpecJsonb: jsonb("jd_spec_jsonb").notNull(), // Structured JD extraction
+  evaluationCriteriaJsonb: jsonb("evaluation_criteria_jsonb").notNull(), // Weighted criteria (4-7 items)
   cvJsonb: jsonb("cv_jsonb").notNull(),
   coverLetterJsonb: jsonb("cover_letter_jsonb").notNull(),
   scorecardPass1Jsonb: jsonb("scorecard_pass1_jsonb").notNull(),
@@ -105,6 +109,8 @@ export const drafts = pgTable("drafts", {
 });
 
 export type Draft = typeof drafts.$inferSelect;
+export const insertDraftSchema = createInsertSchema(drafts).omit({ createdAt: true });
+export type InsertDraft = z.infer<typeof insertDraftSchema>;
 
 // Final documents - Pass 2 outputs
 export const finals = pgTable("finals", {
@@ -118,6 +124,8 @@ export const finals = pgTable("finals", {
 });
 
 export type Final = typeof finals.$inferSelect;
+export const insertFinalSchema = createInsertSchema(finals).omit({ createdAt: true });
+export type InsertFinal = z.infer<typeof insertFinalSchema>;
 
 // Artifacts - Generated .docx file paths
 export const artifacts = pgTable("artifacts", {
@@ -130,6 +138,8 @@ export const artifacts = pgTable("artifacts", {
 });
 
 export type Artifact = typeof artifacts.$inferSelect;
+export const insertArtifactSchema = createInsertSchema(artifacts).omit({ createdAt: true });
+export type InsertArtifact = z.infer<typeof insertArtifactSchema>;
 
 // Audit logs - Security and compliance tracking
 export const auditLogs = pgTable("audit_logs", {
@@ -146,6 +156,8 @@ export const auditLogs = pgTable("audit_logs", {
 });
 
 export type AuditLog = typeof auditLogs.$inferSelect;
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 // ============================================
 // Zod Schemas for JSON payloads

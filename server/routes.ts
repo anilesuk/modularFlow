@@ -419,6 +419,8 @@ ${cvContent}
 
     await storage.createDraft({
       runId,
+      jdSpecJsonb: draftResult.jdSpec as any,
+      evaluationCriteriaJsonb: draftResult.evaluationCriteria as any,
       cvJsonb: draftResult.cvDraft as any,
       coverLetterJsonb: draftResult.coverLetterDraft as any,
       scorecardPass1Jsonb: draftResult.scorecard as any,
@@ -428,6 +430,8 @@ ${cvContent}
     // STAGE 3: Optimize (Pass 2)
     await storage.updateRunStatus(runId, "OPTIMIZING_PASS2");
     const optimizedResult = await aiService.optimizeDocuments(
+      draftResult.jdSpec,
+      draftResult.evaluationCriteria,
       draftResult.cvDraft,
       draftResult.coverLetterDraft,
       jobPosting.payload as any,

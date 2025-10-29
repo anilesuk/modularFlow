@@ -350,3 +350,5 @@ REQUIRED OUTPUT — SINGLE JSON matching the System Prompt "OUTPUT SHAPE".`;
     }
   }
 }
+
+export const aiService = new AIService();
