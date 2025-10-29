@@ -140,7 +140,7 @@ REQUIRED OUTPUT (single JSON object exactly in this shape):
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 8192,
-      temperature: 0.3, // Low temperature for structure and consistency
+      // Note: gpt-5 only supports default temperature (1), custom values not allowed
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
@@ -272,7 +272,7 @@ REQUIRED OUTPUT (single JSON object):
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 8192,
-      temperature: 0.3, // Low temperature for structure and consistency
+      // Note: gpt-5 only supports default temperature (1), custom values not allowed
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
