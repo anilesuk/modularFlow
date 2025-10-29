@@ -4,11 +4,38 @@
 
 **Purpose**: Enterprise-grade AI platform for tailoring CVs and cover letters to specific job postings with strict ATS compliance, privacy security, and two-pass optimization.
 
-**Current State**: Phase 1 (Schema & Frontend) completed. All data models defined, Carbon Design System configured, and complete frontend built with 6 pages and shared components.
+**Current State**: Full application completed with all 7 pages, backend API, database, auth, and AI services. Manual JD input feature added. End-to-end testing passed for both URL scraping and manual job description submission flows.
 
 ---
 
 ## Recent Changes
+
+### 2025-01-29 - Manual JD Input Feature Complete ✅
+- **New Feature**: Added manual job description input as alternative to URL scraping
+  - Radio toggle on Submit page: "URL" vs "Manual Input"
+  - Conditional form rendering based on selection
+  - Backend handles both `jobPostUrl` OR `manualJd` submission paths
+  - Validation for both input types
+  
+- **Database Schema Fixes**:
+  - Added `userId` field to runs table for proper ownership tracking
+  - Added `jobPostingId` field to runs table for job posting reference
+  - Added `manualJd` field to runs table (TEXT, nullable)
+  - Made `jobPostUrl` nullable (only one of URL or manual required)
+  - Increased `idempotencyKey` from VARCHAR(64) to VARCHAR(128)
+  - Fixed jobPostings table query to use `runId` as primary key
+
+- **Backend Implementation**:
+  - Fixed `apiRequest` call signature in frontend (method, url, data)
+  - Added GET `/api/validate-url` endpoint for URL validation
+  - Updated `processJobApplication` to branch on URL vs manual JD
+  - Manual JD skips scraping, goes straight to ANALYZING status
+  - Fixed `getJobPostingById` to query by `runId` (not `id`)
+
+- **Testing**: End-to-end tests passed for both URL and manual JD flows
+  - Profile creation → Manual JD submission → Status tracking ✅
+  - Run creation, retrieval, and processing all working correctly
+  - Architect review: PASS with no critical issues
 
 ### 2025-01-28 - Phase 1: Schema & Frontend Complete
 - **Data Models**: Complete schema defined in `shared/schema.ts` with all required tables:
@@ -70,7 +97,9 @@
 - **Documents**: docx library for .docx generation
 
 ### Core Workflows
-1. **Job Submission**: URL → Scraping → Validation → Queue
+1. **Job Submission**: 
+   - **URL Mode**: URL → Scraping → Validation → Queue
+   - **Manual Mode**: Paste JD text → Direct to Queue (skip scraping)
 2. **Pass 1 (Draft)**: AI generates draft CV/CL + scorecard + recommendations
 3. **Pass 2 (Optimization)**: Apply recs, refine, track changes
 4. **Validation**: ATS compliance checks (no pronouns, SOAR format, formatting)
@@ -92,8 +121,8 @@
 Key tables:
 - `users` - Replit Auth user accounts
 - `candidates` - CV profiles with long-form career data
-- `runs` - Processing jobs with status tracking
-- `job_postings` - Scraped and normalized job data (JSONB)
+- `runs` - Processing jobs with status tracking (includes userId, jobPostingId, jobPostUrl OR manualJd)
+- `job_postings` - Scraped and normalized job data (JSONB, uses runId as primary key)
 - `drafts` - Pass 1 outputs (JSONB)
 - `finals` - Pass 2 outputs (JSONB)
 - `artifacts` - Generated .docx file paths
