@@ -88,7 +88,7 @@ REQUIRED OUTPUT (valid JSON matching these exact schemas):
         "city_country": "City, Country"
       }
     ],
-    "certifications": ["Certification 1", "Certification 2"],
+    "certifications": [{"name": "Certification 1", "year": 2023}, {"name": "Certification 2", "year": 2024}],
     "optional_sections": {
       "languages": ["English (Native)", "Spanish (Fluent)"],
       "awards": ["Award 1"],

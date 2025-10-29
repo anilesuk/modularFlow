@@ -403,8 +403,10 @@ export default function Results() {
                           <div>
                             <h4 className="text-lg font-semibold mb-2">Certifications</h4>
                             <ul className="list-disc list-inside text-sm space-y-1">
-                              {cv.certifications.map((cert: string, idx: number) => (
-                                <li key={idx}>{cert}</li>
+                              {cv.certifications.map((cert: string | {name: string, year?: number}, idx: number) => (
+                                <li key={idx}>
+                                  {typeof cert === 'string' ? cert : `${cert.name}${cert.year ? ` (${cert.year})` : ''}`}
+                                </li>
                               ))}
                             </ul>
                           </div>

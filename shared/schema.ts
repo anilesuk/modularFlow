@@ -239,7 +239,13 @@ export const cvDocumentSchema = z.object({
     institution: z.string(),
     city_country: z.string().optional(),
   })).optional(),
-  certifications: z.array(z.string()).optional(),
+  certifications: z.array(z.union([
+    z.string(),
+    z.object({
+      name: z.string(),
+      year: z.number().optional(),
+    })
+  ])).optional(),
   publications: z.array(z.string()).optional(),
   optional_sections: z.object({
     languages: z.array(z.string()).optional(),
@@ -288,7 +294,7 @@ export const scorecardSchema = z.object({
     jd_expectation: z.string(),
     cv_strength: z.string(),
     score_1_to_10: z.number().int().min(1).max(10),
-  })).min(6).max(12),
+  })).min(4).max(12),
 });
 
 export type Scorecard = z.infer<typeof scorecardSchema>;

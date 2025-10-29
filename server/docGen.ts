@@ -101,9 +101,9 @@ export class DocumentGenerationService {
                     heading: HeadingLevel.HEADING_2,
                   }),
                   ...cv.certifications.map(
-                    cert =>
+                    (cert: string | {name: string, year?: number}) =>
                       new Paragraph({
-                        text: `• ${cert}`,
+                        text: `• ${typeof cert === 'string' ? cert : `${cert.name}${cert.year ? ` (${cert.year})` : ''}`}`,
                         bullet: { level: 0 },
                       })
                   ),
