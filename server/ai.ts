@@ -169,8 +169,7 @@ REQUIRED OUTPUT - EXACT JSON STRUCTURE WITH CORRECT TYPES:
 CRITICAL TYPE REQUIREMENTS:
 - dates.from_year and dates.to_year MUST be numbers (e.g., 2020), NOT strings (e.g., "2020")
 - score_1_to_10 and overall_score_1_to_10 MUST be numbers (e.g., 8 or 8.5), NOT strings (e.g., "8")
-- Each achievement MUST have grounding object with source_snippet
-- Each achievement MUST be an object with fields: bullet, situation, obstacle, action, result, grounding
+- Each achievement MUST be an object with fields: bullet, situation, obstacle, action, result
 - certifications MUST be an array of strings (e.g., ["Cert 1", "Cert 2"]), NOT objects`;
 
     const response = await openai.chat.completions.create({
@@ -309,7 +308,6 @@ CRITICAL TYPE REQUIREMENTS:
 
 RULES
 - Apply ALL recommendations without inventing facts.
-- Maintain grounding (each achievement retains grounding.source_snippet).
 - No pronouns. Years only. SOAR format. End bullets with period.
 - Profile summary 80-220 chars; key_skills 8-16 items.
 - Cover letter 300-400 words, UK style.
@@ -318,7 +316,7 @@ RULES
 
 OUTPUT SHAPE
 {
-  "cv": { ...refined CvDocument with grounding preserved... },
+  "cv": { ...refined CvDocument... },
   "coverLetter": { ...refined CoverLetter... },
   "scorecard": {
     "scorecard": [ 4-12 items; each { area, jd_expectation, cv_strength, score_1_to_10, criterion_ref?: string } ],
@@ -327,7 +325,7 @@ OUTPUT SHAPE
   "addedPoints": [ { description, quote, target_section? } ]
 }`;
 
-    const userPrompt = `Refine these documents by applying recommendations. Preserve grounding and truthfulness.
+    const userPrompt = `Refine these documents by applying recommendations. Preserve truthfulness.
 
 CURRENT DRAFT:
 cv: ${JSON.stringify(cvDraft)}
