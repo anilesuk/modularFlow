@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { Run, Draft, Final, Artifact } from "@shared/schema";
-import type { Scorecard, TraceChange } from "@shared/schema";
+import type { Scorecard, TraceChange, CvDocument, CoverLetter } from "@shared/schema";
 import { Link } from "wouter";
 
 export default function Results() {
@@ -114,8 +114,8 @@ export default function Results() {
   const scorecardPass2 = final?.scorecardPass2Jsonb as unknown as Scorecard | undefined;
   const addedPoints = final?.addedPointsJsonb as unknown as TraceChange[] | undefined;
 
-  const avgScorePass1 = scorecardPass1?.scorecard.reduce((sum, item) => sum + item.score_1_to_10, 0) / (scorecardPass1?.scorecard.length || 1);
-  const avgScorePass2 = scorecardPass2?.scorecard.reduce((sum, item) => sum + item.score_1_to_10, 0) / (scorecardPass2?.scorecard.length || 1);
+  const avgScorePass1 = scorecardPass1?.scorecard?.reduce((sum, item) => sum + item.score_1_to_10, 0) / (scorecardPass1?.scorecard?.length || 1) || 0;
+  const avgScorePass2 = scorecardPass2?.scorecard?.reduce((sum, item) => sum + item.score_1_to_10, 0) / (scorecardPass2?.scorecard?.length || 1) || 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -301,10 +301,123 @@ export default function Results() {
                   {downloading === "cv" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
                 </Button>
               </div>
-              <p className="text-muted-foreground">
-                Your tailored CV has been generated as a professional .docx file with ATS-compliant formatting.
-                Click the download button above to get your document.
-              </p>
+              
+              {(final?.cvJsonb || draft?.cvJsonb) ? (
+                <div className="space-y-6 border-t pt-6" data-testid="cv-content">
+                  {!final?.cvJsonb && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 mb-4">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        Showing draft CV (optimization not completed)
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(() => {
+                    const cv = (final?.cvJsonb || draft?.cvJsonb) as CvDocument | undefined;
+                    if (!cv) return null;
+                    return (
+                      <>
+                        {/* Header */}
+                        <div className="text-center border-b pb-4">
+                          <h3 className="text-2xl font-bold" data-testid="cv-name">{cv.header.full_name}</h3>
+                          <div className="text-sm text-muted-foreground mt-2 space-x-2">
+                            {cv.header.city_region && <span>{cv.header.city_region}</span>}
+                            {cv.header.phone && <span>• {cv.header.phone}</span>}
+                            {cv.header.email && <span>• {cv.header.email}</span>}
+                            {cv.header.linkedin && <span>• {cv.header.linkedin}</span>}
+                          </div>
+                        </div>
+
+                        {/* Headline */}
+                        <div>
+                          <h4 className="text-lg font-semibold mb-2">Professional Headline</h4>
+                          <p className="text-sm">{cv.headline}</p>
+                        </div>
+
+                        {/* Profile Summary */}
+                        <div>
+                          <h4 className="text-lg font-semibold mb-2">Profile Summary</h4>
+                          <p className="text-sm">{cv.profile_summary}</p>
+                        </div>
+
+                        {/* Key Skills */}
+                        <div>
+                          <h4 className="text-lg font-semibold mb-2">Key Skills</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {cv.key_skills?.map((skill: string, idx: number) => (
+                              <Badge key={idx} variant="secondary">{skill}</Badge>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Technical Skills */}
+                        {cv.technical_skills && (
+                          <div>
+                            <h4 className="text-lg font-semibold mb-2">Technical Skills</h4>
+                            <p className="text-sm">{cv.technical_skills}</p>
+                          </div>
+                        )}
+
+                        {/* Experience */}
+                        <div>
+                          <h4 className="text-lg font-semibold mb-3">Professional Experience</h4>
+                          <div className="space-y-4">
+                            {cv.experience?.map((exp: any, idx: number) => (
+                              <div key={idx} className="border-l-2 border-primary/30 pl-4">
+                                <h5 className="font-semibold">{exp.title}</h5>
+                                <div className="text-sm text-muted-foreground mb-2">
+                                  {exp.employer} {exp.location && `• ${exp.location}`}
+                                  <span className="ml-2">
+                                    {exp.dates.from_year} - {exp.dates.to_year || 'Present'}
+                                  </span>
+                                </div>
+                                <p className="text-sm mb-2">{exp.overview}</p>
+                                <ul className="list-disc list-inside space-y-1 text-sm">
+                                  {exp.achievements?.map((ach: any, aidx: number) => (
+                                    <li key={aidx}>{ach.bullet}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Education */}
+                        {cv.education && cv.education.length > 0 && (
+                          <div>
+                            <h4 className="text-lg font-semibold mb-2">Education</h4>
+                            <div className="space-y-2">
+                              {cv.education.map((edu: any, idx: number) => (
+                                <div key={idx} className="text-sm">
+                                  <span className="font-medium">{edu.qualification}</span>
+                                  <span className="text-muted-foreground"> - {edu.institution}</span>
+                                  {edu.city_country && <span className="text-muted-foreground"> ({edu.city_country})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Certifications */}
+                        {cv.certifications && cv.certifications.length > 0 && (
+                          <div>
+                            <h4 className="text-lg font-semibold mb-2">Certifications</h4>
+                            <ul className="list-disc list-inside text-sm space-y-1">
+                              {cv.certifications.map((cert: string, idx: number) => (
+                                <li key={idx}>{cert}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  CV data not available. Processing may have failed before draft generation.
+                </p>
+              )}
             </Card>
           </TabsContent>
 
@@ -320,10 +433,71 @@ export default function Results() {
                   {downloading === "cover-letter" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
                 </Button>
               </div>
-              <p className="text-muted-foreground">
-                Your tailored cover letter has been generated as a professional .docx file in UK business format (300-400 words).
-                Click the download button above to get your document.
-              </p>
+              
+              {(final?.coverLetterJsonb || draft?.coverLetterJsonb) ? (
+                <div className="space-y-6 border-t pt-6" data-testid="cover-letter-content">
+                  {!final?.coverLetterJsonb && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-3 mb-4">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        Showing draft cover letter (optimization not completed)
+                      </p>
+                    </div>
+                  )}
+                  
+                  {(() => {
+                    const cl = (final?.coverLetterJsonb || draft?.coverLetterJsonb) as CoverLetter | undefined;
+                    if (!cl) return null;
+                    return (
+                      <div className="max-w-3xl space-y-4 text-sm">
+                        {/* Header */}
+                        <div className="text-right">
+                          <div className="font-semibold">{cl.header.full_name}</div>
+                          <div className="text-muted-foreground whitespace-pre-line">{cl.header.contact_block}</div>
+                          {cl.header.city_region && <div className="text-muted-foreground">{cl.header.city_region}</div>}
+                        </div>
+
+                        {/* Date */}
+                        <div className="mt-6">
+                          <div>{new Date(cl.meta.date_iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                        </div>
+
+                        {/* Recipient */}
+                        {(cl.meta.recipient.name || cl.meta.recipient.company) && (
+                          <div className="mt-4">
+                            {cl.meta.recipient.name && <div>{cl.meta.recipient.name}</div>}
+                            {cl.meta.recipient.title && <div>{cl.meta.recipient.title}</div>}
+                            {cl.meta.recipient.company && <div>{cl.meta.recipient.company}</div>}
+                            {cl.meta.recipient.address && <div className="whitespace-pre-line">{cl.meta.recipient.address}</div>}
+                          </div>
+                        )}
+
+                        {/* Subject */}
+                        <div className="mt-4 font-semibold">
+                          Re: {cl.meta.subject}
+                        </div>
+
+                        {/* Body Paragraphs */}
+                        <div className="mt-6 space-y-4">
+                          <p>{cl.paragraphs.opening}</p>
+                          <p>{cl.paragraphs.alignment}</p>
+                          <p>{cl.paragraphs.fit_evidence}</p>
+                          <p>{cl.paragraphs.closing}</p>
+                        </div>
+
+                        {/* Sign-off */}
+                        <div className="mt-6">
+                          <div>{cl.sign_off.closing},</div>
+                          <div className="mt-4 font-semibold">{cl.sign_off.name}</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  Cover letter data not available. Processing may have failed before draft generation.
+                </p>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
