@@ -10,6 +10,30 @@
 
 ## Recent Changes
 
+### 2025-01-29 - Document Generation Complete ✅
+- **Word Document Generation Fixes**:
+  - Completely rewrote `server/docGen.ts` to match new CV and cover letter schemas
+  - Added missing `earlier_career_summary` section to CV generation
+  - Added complete candidate header to cover letters (name, contact block with line breaks, city/region)
+  - Fixed certifications to handle both string and object {name, year} formats
+  - All schema fields now properly rendered in .docx output
+  - Architect review: PASS - all fields covered with correct formatting
+
+- **CV Document Fields**:
+  - Header: full_name, city_region, phone, email, linkedin
+  - Headline, profile_summary, key_skills, technical_skills
+  - Professional experience with SOAR achievements
+  - Earlier career summary (title + employer)
+  - Education, certifications, publications
+  - Optional sections: languages, awards, memberships
+
+- **Cover Letter Fields**:
+  - Candidate header with multi-line contact block
+  - Date, recipient address, subject line
+  - Dynamic greeting based on recipient name
+  - All paragraphs: opening, alignment, fit_evidence, closing
+  - Professional sign-off
+
 ### 2025-01-29 - Manual JD Input Feature Complete ✅
 - **New Feature**: Added manual job description input as alternative to URL scraping
   - Radio toggle on Submit page: "URL" vs "Manual Input"
