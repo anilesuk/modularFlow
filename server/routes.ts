@@ -389,7 +389,17 @@ async function processJobApplication(
 
     // STAGE 2: Generate draft (Pass 1)
     await storage.updateRunStatus(runId, "DRAFT_PASS1");
-    const candidateProfile = `Name: ${candidate.fullName}\nEmail: ${candidate.email}\nSkills: ${candidate.skills}\nExperience: ${candidate.experience}`;
+    const candidateProfile = `
+CANDIDATE CONTACT INFORMATION:
+Name: ${candidate.fullName}
+Email: ${candidate.email}
+Phone: ${candidate.phone || 'Not provided'}
+Location: ${candidate.cityRegion || 'Not provided'}
+LinkedIn: ${candidate.linkedin || 'Not provided'}
+
+CANDIDATE'S COMPLETE CV / CAREER HISTORY:
+${candidate.longformCv}
+`.trim();
     
     const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any);
 
