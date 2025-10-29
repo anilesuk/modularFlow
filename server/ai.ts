@@ -320,7 +320,10 @@ OUTPUT SHAPE
 {
   "cv": { ...refined CvDocument with grounding preserved... },
   "coverLetter": { ...refined CoverLetter... },
-  "scorecard": { "scorecard": [ ... ], "overall_score_1_to_10": <number> },
+  "scorecard": {
+    "scorecard": [ 4-12 items; each { area, jd_expectation, cv_strength, score_1_to_10, criterion_ref?: string } ],
+    "overall_score_1_to_10": <number>
+  },
   "addedPoints": [ { description, quote, target_section? } ]
 }`;
 
