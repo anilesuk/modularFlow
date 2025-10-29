@@ -36,6 +36,7 @@ CRITICAL ATS COMPLIANCE RULES:
 CRITICAL FIELD LENGTH CONSTRAINTS (ENFORCED):
 - profile_summary: MUST be 80-220 characters (not one character more!)
 - key_skills: MUST contain 8-16 items (MAXIMUM 16 items, not one more!)
+- scorecard: MUST contain 4-12 items (MINIMUM 4, MAXIMUM 12 items!)
 
 You must output valid JSON matching the provided schemas.`;
 
@@ -128,12 +129,32 @@ REQUIRED OUTPUT (valid JSON matching these exact schemas):
   },
   "scorecard": {
     "scorecard": [
+      // MUST include 4-12 scorecard items (MINIMUM 4, MAXIMUM 12)
       {
         "area": "Technical Skills",
         "jd_expectation": "What the job requires...",
         "cv_strength": "How the candidate meets this...",
         "score_1_to_10": 8
+      },
+      {
+        "area": "Experience & Background",
+        "jd_expectation": "What the job requires...",
+        "cv_strength": "How the candidate meets this...",
+        "score_1_to_10": 9
+      },
+      {
+        "area": "Qualifications",
+        "jd_expectation": "What the job requires...",
+        "cv_strength": "How the candidate meets this...",
+        "score_1_to_10": 7
+      },
+      {
+        "area": "Leadership & Management",
+        "jd_expectation": "What the job requires...",
+        "cv_strength": "How the candidate meets this...",
+        "score_1_to_10": 8
       }
+      // Add more scorecard items as needed (up to 12 total)
     ]
   },
   "recommendations": [
@@ -216,6 +237,7 @@ Apply ALL recommendations while maintaining ATS compliance:
 CRITICAL FIELD LENGTH CONSTRAINTS (ENFORCED):
 - profile_summary: MUST be 80-220 characters (not one character more!)
 - key_skills: MUST contain 8-16 items (MAXIMUM 16 items, not one more!)
+- scorecard: MUST contain 4-12 items (MINIMUM 4, MAXIMUM 12 items!)
 
 Output valid JSON matching the provided schemas.`;
 
@@ -244,7 +266,11 @@ REQUIRED OUTPUT (valid JSON):
   "coverLetter": { ... refined cover letter ... },
   "scorecard": {
     "scorecard": [
-      { "area": "...", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 9 }
+      // MUST include 4-12 items (MINIMUM 4!)
+      { "area": "Technical Skills", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 9 },
+      { "area": "Experience", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 8 },
+      { "area": "Qualifications", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 7 },
+      { "area": "Leadership", "jd_expectation": "...", "cv_strength": "...", "score_1_to_10": 8 }
     ]
   },
   "addedPoints": [
