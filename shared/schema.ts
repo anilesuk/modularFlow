@@ -200,6 +200,57 @@ export const jobPostingSchema = z.object({
 
 export type JobPostingPayload = z.infer<typeof jobPostingSchema>;
 
+// JD Spec schema - structured extraction from job description
+export const jdSpecSchema = z.object({
+  company: z.object({
+    name: z.string().optional(),
+    website: z.string().optional(),
+    industry: z.string().optional(),
+    hq: z.string().optional(),
+  }).optional(),
+  role: z.object({
+    title: z.string(),
+    location: z.string().optional(),
+    seniority: z.string().optional(),
+    employment_type: z.string().optional(),
+  }),
+  must_have: z.array(z.string()),
+  nice_to_have: z.array(z.string()),
+  responsibilities: z.array(z.string()),
+  skills: z.array(z.string()),
+  tools: z.array(z.string()),
+  domains: z.array(z.string()),
+  scope_indicators: z.object({
+    team_size: z.string().optional(),
+    budget: z.string().optional(),
+    regions: z.string().optional(),
+    stakeholder_levels: z.string().optional(),
+  }).optional(),
+  outcomes_kpis: z.array(z.string()),
+  keywords: z.array(z.string()),
+});
+
+export type JdSpec = z.infer<typeof jdSpecSchema>;
+
+// Evaluation Criteria schema - weighted criteria derived from JD
+export const evaluationCriterionSchema = z.object({
+  name: z.string(),
+  jd_signals: z.array(z.string()),
+  weight_percent: z.number().int().min(0).max(100),
+  rubric: z.object({
+    excellent: z.string(),
+    good: z.string(),
+    fair: z.string(),
+    poor: z.string(),
+  }),
+  target_cv_fields: z.array(z.string()),
+});
+
+export type EvaluationCriterion = z.infer<typeof evaluationCriterionSchema>;
+
+export const evaluationCriteriaSchema = z.array(evaluationCriterionSchema).min(4).max(7);
+export type EvaluationCriteria = z.infer<typeof evaluationCriteriaSchema>;
+
 // CV Document schema
 export const cvDocumentSchema = z.object({
   header: z.object({
@@ -228,6 +279,11 @@ export const cvDocumentSchema = z.object({
       obstacle: z.string().optional(),
       action: z.string().optional(),
       result: z.string().optional(),
+      grounding: z.object({
+        source_snippet: z.string(),
+        start_char: z.number().optional(),
+        end_char: z.number().optional(),
+      }),
     })),
   })).min(1),
   earlier_career_summary: z.array(z.object({
@@ -287,31 +343,35 @@ export const coverLetterSchema = z.object({
 
 export type CoverLetter = z.infer<typeof coverLetterSchema>;
 
-// Scorecard schema
+// Scorecard schema with criterion reference and overall score
 export const scorecardSchema = z.object({
   scorecard: z.array(z.object({
     area: z.string(),
     jd_expectation: z.string(),
     cv_strength: z.string(),
     score_1_to_10: z.number().int().min(1).max(10),
+    criterion_ref: z.string().optional(), // Reference to evaluation_criteria[index].name
   })).min(4).max(12),
+  overall_score_1_to_10: z.number().min(1).max(10), // Weighted average from evaluation criteria
 });
 
 export type Scorecard = z.infer<typeof scorecardSchema>;
 
-// Recommendation schema
+// Recommendation schema with suggested text
 export const recommendationSchema = z.object({
   priority: z.enum(["High", "Medium", "Low"]),
   rationale: z.string(),
   target_section: z.string(),
+  suggested_text: z.string().optional(), // Suggested improvement text
 });
 
 export type Recommendation = z.infer<typeof recommendationSchema>;
 
-// Trace Change schema
+// Trace Change schema with target section
 export const traceChangeSchema = z.object({
   description: z.string(),
   quote: z.string(),
+  target_section: z.string().optional(), // JSON path to changed section
 });
 
 export type TraceChange = z.infer<typeof traceChangeSchema>;
