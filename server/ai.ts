@@ -313,18 +313,29 @@ is less than 100 words or more than 125 words.
 DO NOT include word count annotations like "(112 words)" in the summary text!
 The summary should end with a period, not with a word count note.
 
-Example: "Strategic technology leader with 20+ years of experience driving 
-enterprise-scale digital transformation initiatives across Fortune 500 companies. 
-Deep expertise in cloud architecture, data analytics, and AI/ML solutions, with 
-proven track record of delivering $50M+ programs. Skilled in building high-performing 
-teams and fostering relationships with C-suite stakeholders. Led successful migrations 
-to Azure and AWS, reducing infrastructure costs by 40% while improving system 
-reliability. Expert in modern data platforms including Databricks, Snowflake, and 
-Synapse Analytics. Known for translating complex technical concepts into business 
-value and driving innovation through emerging technologies. Passionate about 
-mentoring engineering talent and establishing best practices for scalable solutions. 
-Committed to delivering measurable business outcomes through technology excellence."
-(This example is 112 words - yours should be 100-125 words)
+✗ TOO SHORT (98 words - WILL BE REJECTED):
+"Results-driven technology leader with over 28 years of experience in driving data 
+transformation initiatives across diverse sectors. Proven expertise in managing large-scale 
+data projects, ensuring successful integration and governance. Demonstrated ability to lead 
+cross-functional teams, driving stakeholder engagement and delivering measurable business 
+outcomes. Expert in developing data management frameworks and delivering innovative AI/ML 
+solutions. Recognized for building trusted relationships with clients, enabling strategic 
+contributions to enterprise objectives. Committed to continuous improvement and fostering 
+talent development within teams."
+
+✓ ACCEPTABLE (112 words - PERFECT):
+"Strategic technology leader with 20+ years of experience driving enterprise-scale digital 
+transformation initiatives across Fortune 500 companies. Deep expertise in cloud architecture, 
+data analytics, and AI/ML solutions, with proven track record of delivering $50M+ programs. 
+Skilled in building high-performing teams and fostering relationships with C-suite stakeholders. 
+Led successful migrations to Azure and AWS, reducing infrastructure costs by 40% while improving 
+system reliability. Expert in modern data platforms including Databricks, Snowflake, and Synapse 
+Analytics. Known for translating complex technical concepts into business value and driving 
+innovation through emerging technologies. Passionate about mentoring engineering talent and 
+establishing best practices for scalable solutions. Committed to delivering measurable business 
+outcomes through technology excellence."
+
+WRITE AT LEAST 100 WORDS. If you're close to 100, add more detail to reach the minimum!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -781,18 +792,29 @@ is less than 100 words or more than 125 words.
 DO NOT include word count annotations like "(112 words)" in the summary text!
 The summary should end with a period, not with a word count note.
 
-Example: "Strategic technology leader with 20+ years of experience driving 
-enterprise-scale digital transformation initiatives across Fortune 500 companies. 
-Deep expertise in cloud architecture, data analytics, and AI/ML solutions, with 
-proven track record of delivering $50M+ programs. Skilled in building high-performing 
-teams and fostering relationships with C-suite stakeholders. Led successful migrations 
-to Azure and AWS, reducing infrastructure costs by 40% while improving system 
-reliability. Expert in modern data platforms including Databricks, Snowflake, and 
-Synapse Analytics. Known for translating complex technical concepts into business 
-value and driving innovation through emerging technologies. Passionate about 
-mentoring engineering talent and establishing best practices for scalable solutions. 
-Committed to delivering measurable business outcomes through technology excellence."
-(This example is 112 words - yours should be 100-125 words)
+✗ TOO SHORT (98 words - WILL BE REJECTED):
+"Results-driven technology leader with over 28 years of experience in driving data 
+transformation initiatives across diverse sectors. Proven expertise in managing large-scale 
+data projects, ensuring successful integration and governance. Demonstrated ability to lead 
+cross-functional teams, driving stakeholder engagement and delivering measurable business 
+outcomes. Expert in developing data management frameworks and delivering innovative AI/ML 
+solutions. Recognized for building trusted relationships with clients, enabling strategic 
+contributions to enterprise objectives. Committed to continuous improvement and fostering 
+talent development within teams."
+
+✓ ACCEPTABLE (112 words - PERFECT):
+"Strategic technology leader with 20+ years of experience driving enterprise-scale digital 
+transformation initiatives across Fortune 500 companies. Deep expertise in cloud architecture, 
+data analytics, and AI/ML solutions, with proven track record of delivering $50M+ programs. 
+Skilled in building high-performing teams and fostering relationships with C-suite stakeholders. 
+Led successful migrations to Azure and AWS, reducing infrastructure costs by 40% while improving 
+system reliability. Expert in modern data platforms including Databricks, Snowflake, and Synapse 
+Analytics. Known for translating complex technical concepts into business value and driving 
+innovation through emerging technologies. Passionate about mentoring engineering talent and 
+establishing best practices for scalable solutions. Committed to delivering measurable business 
+outcomes through technology excellence."
+
+WRITE AT LEAST 100 WORDS. If you're close to 100, add more detail to reach the minimum!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
