@@ -339,12 +339,24 @@ async function processJobApplication(
       const lines = manualJd.split('\n').filter(l => l.trim());
       const firstLine = lines[0] || "Unknown Role";
       
-      // Create payload with job posting data
+      // Create payload with job posting data (matching scraped structure)
       const payload = {
-        company: "From Manual Input",
-        role: firstLine.substring(0, 100), // Use first line as role
-        location: "Not Specified",
-        description: manualJd,
+        company: {
+          name: "From Manual Input",
+          website: null,
+          industry: null,
+          hq: null,
+        },
+        role: {
+          title: firstLine.substring(0, 100), // Use first line as role
+          location: "Not Specified",
+          seniority: null,
+          employment_type: null,
+        },
+        description: {
+          clean_text: manualJd,
+          html: null,
+        },
         requirements: [],
         responsibilities: [],
         benefits: [],
