@@ -417,17 +417,31 @@ ${cvContent}
     
     const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any);
 
-    await storage.createDraft({
-      runId,
-      rawCvInput: draftResult.rawCvInput,
-      promptsJsonb: draftResult.prompts as any,
-      jdSpecJsonb: draftResult.jdSpec as any,
-      evaluationCriteriaJsonb: draftResult.evaluationCriteria as any,
-      cvJsonb: draftResult.cvDraft as any,
-      coverLetterJsonb: draftResult.coverLetterDraft as any,
-      scorecardPass1Jsonb: draftResult.scorecard as any,
-      recommendationsPass1Jsonb: draftResult.recommendations as any,
+    console.log("Saving draft to database...");
+    console.log("Draft data structure:", {
+      hasRawCvInput: !!draftResult.rawCvInput,
+      hasPrompts: !!draftResult.prompts,
+      hasJdSpec: !!draftResult.jdSpec,
+      hasCv: !!draftResult.cvDraft,
     });
+    
+    try {
+      await storage.createDraft({
+        runId,
+        rawCvInput: draftResult.rawCvInput,
+        promptsJsonb: draftResult.prompts as any,
+        jdSpecJsonb: draftResult.jdSpec as any,
+        evaluationCriteriaJsonb: draftResult.evaluationCriteria as any,
+        cvJsonb: draftResult.cvDraft as any,
+        coverLetterJsonb: draftResult.coverLetterDraft as any,
+        scorecardPass1Jsonb: draftResult.scorecard as any,
+        recommendationsPass1Jsonb: draftResult.recommendations as any,
+      });
+      console.log("Draft saved successfully!");
+    } catch (error) {
+      console.error("Failed to save draft:", error);
+      throw error;
+    }
 
     // STAGE 3: Optimize (Pass 2)
     await storage.updateRunStatus(runId, "OPTIMIZING_PASS2");
