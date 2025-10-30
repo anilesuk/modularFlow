@@ -9,6 +9,7 @@ import { objectStorage } from "./objectStorage";
 import { objectAcl } from "./objectAcl";
 import { insertCandidateSchema, insertRunSchema } from "@shared/schema";
 import type { CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange } from "@shared/schema";
+import { cvGenerationConfigSchema, getCvConfig, type CvGenerationConfig } from "./cvConfig";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ===== AUTH =====
@@ -170,15 +171,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
-      // Validate the incoming preferences structure
-      const preferences = req.body;
-      
-      // Basic validation - ensure required fields exist
-      if (!preferences.profileSummary || !preferences.keySkills || 
-          !preferences.technicalSkills || !preferences.experience || 
-          !preferences.evaluationCriteria) {
-        return res.status(400).json({ error: "Invalid preferences structure" });
+      // Validate and sanitize preferences using Zod schema
+      // This removes unknown keys and validates structure/types
+      const validationResult = cvGenerationConfigSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid preferences structure",
+          details: validationResult.error.errors 
+        });
       }
+
+      const preferences = validationResult.data; // Sanitized data with unknown keys removed
 
       // Update the candidate's cvPreferences
       await storage.updateCandidate(candidate.id, {
@@ -388,6 +391,9 @@ async function processJobApplication(
   userId: string
 ) {
   try {
+    // Load CV config once per run to avoid multiple DB queries
+    const cvConfig = await getCvConfig(candidate.id);
+    
     let jobPosting: any;
 
     if (manualJd) {
@@ -486,7 +492,7 @@ ${cvContent}
     
     console.log(`Sending to AI: candidateProfile length = ${candidateProfile.length} chars, ~${Math.ceil(candidateProfile.length / 4)} tokens`);
     
-    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any, candidate.id);
+    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any, cvConfig);
 
     console.log("Saving draft to database...");
     console.log("Draft data structure:", {
@@ -523,7 +529,7 @@ ${cvContent}
       draftResult.coverLetterDraft,
       jobPosting.payload as any,
       draftResult.recommendations,
-      candidate.id
+      cvConfig
     );
 
     await storage.createFinal({

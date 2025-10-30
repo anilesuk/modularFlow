@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { JobPostingPayload, CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange, JdSpec, EvaluationCriteria } from "@shared/schema";
 import { cvDocumentSchema, coverLetterSchema, scorecardSchema, recommendationSchema, traceChangeSchema, jdSpecSchema, evaluationCriteriaSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
-import { getCvConfig, getWordCountRange } from "./cvConfig";
+import { defaultCvConfig, getWordCountRange, type CvGenerationConfig } from "./cvConfig";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 const openai = new OpenAI({
@@ -13,8 +13,8 @@ const openai = new OpenAI({
 /**
  * Auto-repair common validation failures in AI output
  */
-async function autoRepairAIOutput(result: any, candidateId?: string): Promise<any> {
-  const config = await getCvConfig(candidateId);
+async function autoRepairAIOutput(result: any, cvConfig: CvGenerationConfig): Promise<any> {
+  const config = cvConfig;
   
   // Handle both nested (result.cv) and flat CV objects
   const cv = result.cv || result;
@@ -267,7 +267,7 @@ RULES:
     });
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = await autoRepairAIOutput(result);
+    result = await autoRepairAIOutput(result, defaultCvConfig);
     
     try {
       const jdSpec = jdSpecSchema.parse(result.jdSpec);
@@ -321,7 +321,7 @@ RULES:
     candidateProfile: string,
     jdSpec: JdSpec,
     evaluationCriteria: EvaluationCriteria,
-    candidateId?: string
+    cvConfig: CvGenerationConfig
   ): Promise<CvDocument> {
     // Extract expected role count BEFORE sending to AI (authoritative baseline)
     const expectedRoleCount = this.extractExpectedRoleCount(candidateProfile);
@@ -574,7 +574,7 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
     });
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = await autoRepairAIOutput(result, candidateId);
+    result = await autoRepairAIOutput(result, cvConfig);
     
     try {
       const cv = cvDocumentSchema.parse(result);
@@ -940,7 +940,7 @@ CRITICAL:
     candidateProfile: string,
     jdSpec: JdSpec,
     evaluationCriteria: EvaluationCriteria,
-    candidateId?: string
+    cvConfig: CvGenerationConfig
   ): Promise<{ cv: CvDocument; prompts: { system: string; user: string } }> {
     // Build prompts (identical to generateCV)
     const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
@@ -1340,7 +1340,7 @@ CRITICAL:
   async generateDraft(
     candidateProfile: string,
     jobPosting: JobPostingPayload,
-    candidateId?: string
+    cvConfig: CvGenerationConfig
   ): Promise<{
     jdSpec: JdSpec;
     evaluationCriteria: EvaluationCriteria;
@@ -1366,7 +1366,7 @@ CRITICAL:
     
     // Phase 1A: Generate CV
     console.log("Phase 1A: Generating CV...");
-    const { cv: cvDraft, prompts: phase1aPrompts } = await this.generateCVWithPrompts(candidateProfile, jdSpec, evaluationCriteria, candidateId);
+    const { cv: cvDraft, prompts: phase1aPrompts } = await this.generateCVWithPrompts(candidateProfile, jdSpec, evaluationCriteria, cvConfig);
     prompts.phase1a_cv = phase1aPrompts;
     
     // Phase 1B: Generate cover letter
@@ -1407,7 +1407,7 @@ CRITICAL:
     coverLetterDraft: CoverLetter,
     jobPosting: JobPostingPayload,
     recommendations: Recommendation[],
-    candidateId?: string
+    cvConfig: CvGenerationConfig
   ): Promise<{
     cvFinal: CvDocument;
     coverLetterFinal: CoverLetter;
@@ -1491,7 +1491,7 @@ Return refined JSON with addedPoints tracking changes. Calculate overall_score_1
     });
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = await autoRepairAIOutput(result, candidateId);
+    result = await autoRepairAIOutput(result, cvConfig);
     
     // Validate AI output against schemas before returning
     try {

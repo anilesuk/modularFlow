@@ -8,6 +8,7 @@
 import { db } from "./db";
 import { candidates } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 export interface CvSectionConfig {
   minWords: number;
@@ -43,6 +44,55 @@ export interface CvGenerationConfig {
     exactCount: number; // Must be exactly this many criteria
   };
 }
+
+/**
+ * Zod schema for validating CV preferences from API requests
+ * Ensures strict type safety and removes unknown keys
+ */
+export const cvGenerationConfigSchema = z.object({
+  profileSummary: z.object({
+    minWords: z.number().int().min(50).max(200),
+    maxWords: z.number().int().min(50).max(200),
+  }).refine(data => data.minWords <= data.maxWords, {
+    message: "profileSummary.minWords must be <= maxWords"
+  }),
+  
+  keySkills: z.object({
+    minWords: z.number().int().min(30).max(150),
+    maxWords: z.number().int().min(30).max(150),
+  }).refine(data => data.minWords <= data.maxWords, {
+    message: "keySkills.minWords must be <= maxWords"
+  }),
+  
+  technicalSkills: z.object({
+    minWords: z.number().int().min(30).max(150),
+    maxWords: z.number().int().min(30).max(150),
+  }).refine(data => data.minWords <= data.maxWords, {
+    message: "technicalSkills.minWords must be <= maxWords"
+  }),
+  
+  experience: z.object({
+    mostRecentRole: z.object({
+      minBullets: z.number().int().min(1).max(10),
+      maxBullets: z.number().int().min(1).max(10),
+    }).refine(data => data.minBullets <= data.maxBullets, {
+      message: "mostRecentRole.minBullets must be <= maxBullets"
+    }),
+    secondRole: z.object({
+      minBullets: z.number().int().min(1).max(10),
+      maxBullets: z.number().int().min(1).max(10),
+    }).refine(data => data.minBullets <= data.maxBullets, {
+      message: "secondRole.minBullets must be <= maxBullets"
+    }),
+    olderRoles: z.object({
+      bulletsPerRole: z.number().int().min(1).max(5),
+    }),
+  }),
+  
+  evaluationCriteria: z.object({
+    exactCount: z.number().int().min(4).max(10),
+  }),
+}).strict(); // strict() removes unknown keys
 
 /**
  * Default CV generation configuration

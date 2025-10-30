@@ -4,7 +4,17 @@
 CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and cover letters to specific job postings. Its core purpose is to ensure strict ATS compliance, maintain privacy security, and optimize documents through a two-pass AI process with mandatory achievement grounding enforcement. The application features all seven frontend pages, a robust backend API, database integration, authentication, and AI services. It supports both URL-based job description scraping and manual job description input. The project provides a professional, secure, and efficient solution for job seekers with cost-effective AI model usage (gpt-4o-mini).
 
 ## Recent Changes (Latest Session)
-### ✅ Enhanced JD Specification Schema (COMPLETE - Current Session)
+### ✅ User-Specific CV Preferences System (COMPLETE - Current Session)
+- **Database**: Added `cvPreferences` JSONB field to candidates table for storing user-specific configuration
+- **Backend**: getCvConfig() loads preferences from database; loaded once per run and passed through entire AI pipeline
+- **API Endpoints**: GET/PUT /api/candidates/:id/cv-preferences with ownership validation and Zod schema sanitization
+- **Frontend**: CvSettingsDialog component with form validation, min/max enforcement, and reset to defaults
+- **Security Fix**: PUT endpoint uses cvGenerationConfigSchema.strict() to remove unknown keys and validate structure
+- **Performance Fix**: Config loaded once in processJobApplication and passed down (avoids 4-6 DB queries per run)
+- **Complete Flow**: UI → API → Database → AI Pipeline using personalized settings
+- **Tested**: End-to-end test confirms preferences persist and round-trip correctly
+
+### ✅ Enhanced JD Specification Schema (COMPLETE - Previous Session)
 - **New Optional Fields Added to JD Spec** (backward compatible):
   - `qualifications`: Educational/certification requirements extracted from JD
   - `experience`: Specific experience requirements (NO condensing per requirements)
