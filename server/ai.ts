@@ -264,7 +264,8 @@ NON-NEGOTIABLE ATS + STYLE
 - Profile summary length: 80–220 characters (strict).
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Quantify only where supported by the candidate profile (no invented numbers).
-- Reverse chronological; emphasise last 10–12 years; summarise earlier career WITHOUT dates.
+- Include 2-4 DETAILED experience entries covering the last 10-12 years; summarise earlier career in earlier_career_summary WITHOUT dates.
+- Each experience entry should have 2-4 achievements with grounding.
 - Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
 GROUNDING & ALIGNMENT (MANDATORY)
