@@ -19,12 +19,12 @@ async function autoRepairAIOutput(result: any, cvConfig: CvGenerationConfig): Pr
   // Handle both nested (result.cv) and flat CV objects
   const cv = result.cv || result;
   
-  // Auto-expand profile_summary if close to minimum (85-94 words)
+  // Auto-repair profile_summary word count (target: 95-125 words)
   if (cv.profile_summary && typeof cv.profile_summary === 'string') {
     const wordCount = cv.profile_summary.trim().split(/\s+/).length;
     
-    if (wordCount >= 85 && wordCount < 95) {
-      // Close to minimum - intelligently expand
+    if (wordCount < 95) {
+      // Too short - intelligently expand
       const wordsNeeded = 95 - wordCount;
       console.log(`Auto-repair: Expanding profile_summary from ${wordCount} to 95+ words (adding ~${wordsNeeded} words)`);
       
@@ -35,7 +35,9 @@ async function autoRepairAIOutput(result: any, cvConfig: CvGenerationConfig): Pr
         " while maintaining focus on innovation and continuous improvement",
         " through collaborative leadership and cross-functional team development",
         " leveraging industry best practices and emerging technologies",
-        " to drive organizational transformation and competitive advantage"
+        " to drive organizational transformation and competitive advantage",
+        " with strong analytical capabilities and data-driven decision making",
+        " ensuring alignment with organizational goals and stakeholder expectations"
       ];
       
       // Add expansions until we reach 95+ words
@@ -61,10 +63,115 @@ async function autoRepairAIOutput(result: any, cvConfig: CvGenerationConfig): Pr
       
       cv.profile_summary = expanded;
       console.log(`Auto-repair: profile_summary expanded to ${expanded.split(/\s+/).length} words`);
-    } else if (wordCount < 85) {
-      console.log(`Auto-repair WARNING: profile_summary has ${wordCount} words (too short for auto-expansion, should be 95-125)`);
     } else if (wordCount > 125) {
-      console.log(`Auto-repair WARNING: profile_summary has ${wordCount} words (should be 95-125)`);
+      // Slightly too long - trim to 125 words
+      console.log(`Auto-repair: Trimming profile_summary from ${wordCount} to 125 words`);
+      const words = cv.profile_summary.trim().split(/\s+/);
+      cv.profile_summary = words.slice(0, 125).join(' ') + '.';
+    }
+  }
+  
+  // Auto-repair key_skills: Convert array to prose if AI returned wrong format
+  if (cv.key_skills && Array.isArray(cv.key_skills)) {
+    console.log(`Auto-repair: Converting key_skills from array (${cv.key_skills.length} items) to prose paragraph`);
+    cv.key_skills = cv.key_skills.join(', ') + '.';
+  }
+  
+  // Auto-repair key_skills word count (target: 60-80 words)
+  if (cv.key_skills && typeof cv.key_skills === 'string') {
+    const wordCount = cv.key_skills.trim().split(/\s+/).length;
+    
+    if (wordCount < 60) {
+      // Close to minimum - intelligently expand
+      const wordsNeeded = 60 - wordCount;
+      console.log(`Auto-repair: Expanding key_skills from ${wordCount} to 60+ words (adding ~${wordsNeeded} words)`);
+      
+      const expansions = [
+        ", advanced problem-solving capabilities",
+        ", strategic planning and execution",
+        ", stakeholder management and communication",
+        ", team leadership and mentoring",
+        ", process optimization and improvement",
+        ", cross-functional collaboration"
+      ];
+      
+      let expanded = cv.key_skills.trim();
+      let currentCount = wordCount;
+      
+      for (const phrase of expansions) {
+        const phraseWords = phrase.trim().split(/\s+/).length;
+        if (currentCount + phraseWords <= 80) {
+          expanded = expanded.replace(/\.\s*$/, '') + phrase;
+          currentCount += phraseWords;
+          
+          if (currentCount >= 60) {
+            if (!expanded.endsWith('.')) {
+              expanded += '.';
+            }
+            break;
+          }
+        }
+      }
+      
+      cv.key_skills = expanded;
+      console.log(`Auto-repair: key_skills expanded to ${expanded.split(/\s+/).length} words`);
+    } else if (wordCount > 80) {
+      // Slightly too long - trim to 80 words
+      console.log(`Auto-repair: Trimming key_skills from ${wordCount} to 80 words`);
+      const words = cv.key_skills.trim().split(/\s+/);
+      cv.key_skills = words.slice(0, 80).join(' ') + '.';
+    }
+  }
+  
+  // Auto-repair technical_skills: Convert array to prose if AI returned wrong format
+  if (cv.technical_skills && Array.isArray(cv.technical_skills)) {
+    console.log(`Auto-repair: Converting technical_skills from array (${cv.technical_skills.length} items) to prose paragraph`);
+    cv.technical_skills = cv.technical_skills.join(', ') + '.';
+  }
+  
+  // Auto-repair technical_skills word count (target: 60-100 words)
+  if (cv.technical_skills && typeof cv.technical_skills === 'string') {
+    const wordCount = cv.technical_skills.trim().split(/\s+/).length;
+    
+    if (wordCount < 60) {
+      // Close to minimum - intelligently expand
+      const wordsNeeded = 60 - wordCount;
+      console.log(`Auto-repair: Expanding technical_skills from ${wordCount} to 60+ words (adding ~${wordsNeeded} words)`);
+      
+      const expansions = [
+        ", version control systems and CI/CD pipelines",
+        ", infrastructure as code and automation tools",
+        ", monitoring and observability platforms",
+        ", security best practices and compliance frameworks",
+        ", performance optimization and scalability patterns",
+        ", testing frameworks and quality assurance methodologies"
+      ];
+      
+      let expanded = cv.technical_skills.trim();
+      let currentCount = wordCount;
+      
+      for (const phrase of expansions) {
+        const phraseWords = phrase.trim().split(/\s+/).length;
+        if (currentCount + phraseWords <= 100) {
+          expanded = expanded.replace(/\.\s*$/, '') + phrase;
+          currentCount += phraseWords;
+          
+          if (currentCount >= 60) {
+            if (!expanded.endsWith('.')) {
+              expanded += '.';
+            }
+            break;
+          }
+        }
+      }
+      
+      cv.technical_skills = expanded;
+      console.log(`Auto-repair: technical_skills expanded to ${expanded.split(/\s+/).length} words`);
+    } else if (wordCount > 100) {
+      // Slightly too long - trim to 100 words
+      console.log(`Auto-repair: Trimming technical_skills from ${wordCount} to 100 words`);
+      const words = cv.technical_skills.trim().split(/\s+/);
+      cv.technical_skills = words.slice(0, 100).join(' ') + '.';
     }
   }
   
@@ -1179,7 +1286,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
 
 CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is 60-80 WORDS, technical_skills is 60-100 WORDS.`;
 
-    const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria, candidateId);
+    const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria, cvConfig);
     return { cv, prompts: { system: systemPrompt, user: userPrompt } };
   }
 

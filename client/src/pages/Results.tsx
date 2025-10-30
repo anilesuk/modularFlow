@@ -347,11 +347,7 @@ export default function Results() {
                         {/* Key Skills */}
                         <div>
                           <h4 className="text-lg font-semibold mb-2">Key Skills</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {cv.key_skills?.map((skill: string, idx: number) => (
-                              <Badge key={idx} variant="secondary">{skill}</Badge>
-                            ))}
-                          </div>
+                          <p className="text-sm">{cv.key_skills}</p>
                         </div>
 
                         {/* Technical Skills */}
