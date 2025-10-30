@@ -4,6 +4,16 @@
 CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and cover letters to specific job postings. Its core purpose is to ensure strict ATS compliance, maintain privacy security, and optimize documents through a two-pass AI process with mandatory achievement grounding enforcement. The application features all seven frontend pages, a robust backend API, database integration, authentication, and AI services. It supports both URL-based job description scraping and manual job description input. The project provides a professional, secure, and efficient solution for job seekers with cost-effective AI model usage (gpt-4o-mini).
 
 ## Recent Changes (Latest Session)
+### ✅ Full Traceability Implementation (COMPLETE)
+- **Raw CV Input**: System now stores the exact CV text sent to AI (full or condensed)
+- **AI Prompts Captured**: All system and user prompts saved for every AI call (Phase 0, 1A, 1B, 1C, 2)
+- **Results UI Enhanced**: New Raw Data tab displays:
+  - Raw CV input sent to AI with Full/Condensed indicator
+  - All AI prompts with system & user sections for each phase
+  - All JSON outputs organized by processing phase
+- **Database Schema**: Added `rawCvInput` (text) and `promptsJsonb` (jsonb) fields to drafts and finals tables
+- **Complete Audit Trail**: Every AI interaction is now fully traceable for debugging and compliance
+
 ### ✅ Grounding Enforcement Implementation (COMPLETE)
 - **Runtime Validation**: Added hard error checking for missing grounding on ALL achievements
 - **Strengthened AI Prompts**: Added prominent 🚨 warning at top of Phase 1A prompt with exact example

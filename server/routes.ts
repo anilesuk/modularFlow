@@ -419,6 +419,8 @@ ${cvContent}
 
     await storage.createDraft({
       runId,
+      rawCvInput: draftResult.rawCvInput,
+      promptsJsonb: draftResult.prompts as any,
       jdSpecJsonb: draftResult.jdSpec as any,
       evaluationCriteriaJsonb: draftResult.evaluationCriteria as any,
       cvJsonb: draftResult.cvDraft as any,

@@ -515,7 +515,55 @@ export default function Results() {
               </p>
               
               <Accordion type="multiple" className="space-y-2">
+                {/* Raw CV Input */}
+                {draft?.rawCvInput && (
+                  <AccordionItem value="raw-cv-input" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Raw CV Input Sent to AI</span>
+                        <Badge variant="outline">
+                          {draft.rawCvInput.length > 50000 ? 'Condensed' : 'Full'} 
+                          {' '}({(draft.rawCvInput.length / 1024).toFixed(1)}KB)
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2 whitespace-pre-wrap">
+                        {draft.rawCvInput}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
                 {/* Phase 0: Job Analysis */}
+                {/* Prompts: Phase 0 */}
+                {draft?.promptsJsonb && (draft.promptsJsonb as any).phase0_jd_analysis && (
+                  <AccordionItem value="prompt-phase0" className="border rounded-lg px-4 bg-blue-50 dark:bg-blue-950/20">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">📋 Phase 0: AI Prompts (JD Analysis)</span>
+                        <Badge variant="outline">Prompts</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4 mt-2">
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">System Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase0_jd_analysis as any).system}
+                          </pre>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">User Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase0_jd_analysis as any).user}
+                          </pre>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
                 {draft?.jdSpecJsonb && (
                   <AccordionItem value="jd-spec" className="border rounded-lg px-4">
                     <AccordionTrigger className="hover:no-underline">
@@ -549,6 +597,34 @@ export default function Results() {
                 )}
 
                 {/* Phase 1: Draft Generation */}
+                {/* Prompts: Phase 1A */}
+                {draft?.promptsJsonb && (draft.promptsJsonb as any).phase1a_cv && (
+                  <AccordionItem value="prompt-phase1a" className="border rounded-lg px-4 bg-blue-50 dark:bg-blue-950/20">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">📋 Phase 1A: AI Prompts (CV Generation)</span>
+                        <Badge variant="outline">Prompts</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4 mt-2">
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">System Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase1a_cv as any).system}
+                          </pre>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">User Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase1a_cv as any).user}
+                          </pre>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
                 {draft?.cvJsonb && (
                   <AccordionItem value="cv-draft" className="border rounded-lg px-4">
                     <AccordionTrigger className="hover:no-underline">
@@ -565,6 +641,34 @@ export default function Results() {
                   </AccordionItem>
                 )}
 
+                {/* Prompts: Phase 1B */}
+                {draft?.promptsJsonb && (draft.promptsJsonb as any).phase1b_cover_letter && (
+                  <AccordionItem value="prompt-phase1b" className="border rounded-lg px-4 bg-blue-50 dark:bg-blue-950/20">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">📋 Phase 1B: AI Prompts (Cover Letter)</span>
+                        <Badge variant="outline">Prompts</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4 mt-2">
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">System Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase1b_cover_letter as any).system}
+                          </pre>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">User Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase1b_cover_letter as any).user}
+                          </pre>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
                 {draft?.coverLetterJsonb && (
                   <AccordionItem value="cl-draft" className="border rounded-lg px-4">
                     <AccordionTrigger className="hover:no-underline">
@@ -577,6 +681,34 @@ export default function Results() {
                       <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
                         {JSON.stringify(draft.coverLetterJsonb, null, 2)}
                       </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {/* Prompts: Phase 1C */}
+                {draft?.promptsJsonb && (draft.promptsJsonb as any).phase1c_analysis && (
+                  <AccordionItem value="prompt-phase1c" className="border rounded-lg px-4 bg-blue-50 dark:bg-blue-950/20">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">📋 Phase 1C: AI Prompts (Scorecard & Recommendations)</span>
+                        <Badge variant="outline">Prompts</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-4 mt-2">
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">System Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase1c_analysis as any).system}
+                          </pre>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold mb-2">User Prompt:</h4>
+                          <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-64 whitespace-pre-wrap">
+                            {((draft.promptsJsonb as any).phase1c_analysis as any).user}
+                          </pre>
+                        </div>
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
                 )}

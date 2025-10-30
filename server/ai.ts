@@ -67,6 +67,7 @@ export class AIService {
   ): Promise<{
     jdSpec: JdSpec;
     evaluationCriteria: EvaluationCriteria;
+    prompts: { system: string; user: string };
   }> {
     const systemPrompt = `You are a job description analysis expert. Return ONE valid JSON object only (no prose, no markdown).
 
@@ -203,7 +204,11 @@ RULES:
         throw new Error(`Evaluation criteria weights sum to ${totalWeight}, must be 100`);
       }
       
-      return { jdSpec, evaluationCriteria };
+      return { 
+        jdSpec, 
+        evaluationCriteria,
+        prompts: { system: systemPrompt, user: userPrompt }
+      };
     } catch (error: any) {
       console.error("JD analysis validation failed:", error);
       console.error("Raw AI output:", JSON.stringify(result, null, 2));
@@ -654,6 +659,284 @@ CRITICAL:
   }
 
   /**
+   * Wrapper: Generate CV with prompts for traceability
+   */
+  async generateCVWithPrompts(
+    candidateProfile: string,
+    jdSpec: JdSpec,
+    evaluationCriteria: EvaluationCriteria
+  ): Promise<{ cv: CvDocument; prompts: { system: string; user: string } }> {
+    // Build prompts (identical to generateCV)
+    const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨🚨🚨 CRITICAL - GROUNDING IS MANDATORY - THIS WILL BE VALIDATED 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+EVERY achievement MUST have a "grounding" object with "source_snippet".
+Your response will be REJECTED if even ONE achievement lacks grounding.
+
+CORRECT FORMAT (copy this exactly):
+{
+  "bullet": "Led migration of legacy system to microservices architecture reducing latency by 40%.",
+  "grounding": {
+    "source_snippet": "Led migration of legacy system to microservices",
+    "confidence": "high"
+  },
+  "situation": "...",
+  "obstacle": "...",
+  "action": "...",
+  "result": "..."
+}
+
+WRONG FORMAT (will be REJECTED):
+{
+  "bullet": "...",
+  "situation": "...",
+  "obstacle": "...",
+  "action": "...",
+  "result": "..."
+}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NON-NEGOTIABLE ATS + STYLE
+- No pronouns (I/me/my/we/us/he/she).
+- Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
+- Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
+- Profile summary length: 80–220 characters (strict).
+- key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
+- Quantify only where supported by the candidate profile (no invented numbers).
+- Include 2-4 DETAILED experience entries covering the last 10-12 years; summarise earlier career in earlier_career_summary WITHOUT dates.
+- Each experience entry should have 2-4 achievements with grounding.
+- Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
+
+GROUNDING & ALIGNMENT (MANDATORY)
+- Every achievement MUST include a "grounding" object with "source_snippet" taken verbatim from the candidate profile.
+- Include "jd_alignment" at each experience entry: { criteria_hit: string[], jd_signals_used: string[] }
+  - criteria_hit: evaluation criteria names covered in this role
+  - jd_signals_used: JD terms/phrases addressed in this role
+- Include "jd_alignment" at CV root level: { headline_signals?: string[], profile_signals?: string[], key_skills_signals?: string[], technical_skills_signals?: string[] }
+- Include "criteria_coverage" array with objects: { criterion_ref: string, sections_addressing: string[], strength: "strong"|"moderate"|"weak" }
+  Each item maps an evaluation criterion to which CV sections address it and how strongly.
+
+VALIDATE BEFORE RETURN
+- profile_summary 80–220 chars; key_skills length 8–16.
+- All years are numbers; dates show years only.
+- Each achievement has grounding.source_snippet and ends with a period.
+- At least one criteria_coverage item per evaluation criterion provided.
+- Output JSON only.`;
+
+    const criteriaContext = evaluationCriteria.map(c => 
+      `${c.name} (${c.weight_percent}%): Focus on ${c.jd_signals.join(', ')}`
+    ).join('\n');
+
+    const userPrompt = `Generate a tailored CV for this job.
+
+JOB REQUIREMENTS:
+Role: ${jdSpec.role}
+Must-have: ${jdSpec.must_have.join(', ')}
+Key skills: ${jdSpec.skills.join(', ')}
+Tools: ${jdSpec.tools.join(', ')}
+
+EVALUATION FOCUS:
+${criteriaContext}
+
+CANDIDATE PROFILE:
+${candidateProfile}
+
+REQUIRED JSON STRUCTURE:
+{
+  "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
+  "headline": "Job Title | Specialization",
+  "profile_summary": "80-220 char summary",
+  "key_skills": ["Skill 1", "Skill 2", ...8-16 items],
+  "technical_skills": "Tool1 | Tool2 | Tool3",
+  "experience": [
+    {
+      "employer": "Company",
+      "location": "City, Country",
+      "title": "Job Title",
+      "dates": { "from_year": 2020, "to_year": 2023 },
+      "overview": "Brief scope",
+      "achievements": [
+        {
+          "bullet": "Action verb + SOAR fused into one bullet ending with period.",
+          "grounding": {
+            "source_snippet": "Copy exact text from candidate profile here",
+            "confidence": "high"
+          },
+          "situation": "Context",
+          "obstacle": "Challenge",
+          "action": "What was done",
+          "result": "Outcome with metrics if supported"
+        }
+      ]
+    }
+  ],
+  "earlier_career_summary": [{"title": "Title", "employer": "Company"}],
+  "education": [{"qualification": "Degree", "institution": "University", "city_country": "City"}],
+  "certifications": ["Cert 1", "Cert 2"],
+  "optional_sections": {}
+}
+
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 80-220 chars, key_skills has 8-16 items.`;
+
+    const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria);
+    return { cv, prompts: { system: systemPrompt, user: userPrompt } };
+  }
+
+  /**
+   * Wrapper: Generate cover letter with prompts for traceability
+   */
+  async generateCoverLetterWithPrompts(
+    cv: CvDocument,
+    jdSpec: JdSpec
+  ): Promise<{ coverLetter: CoverLetter; prompts: { system: string; user: string } }> {
+    const systemPrompt = `You are a cover letter writer for senior technology leadership roles. Return ONE valid JSON object (the cover letter only).
+
+RULES
+- UK business letter format; professional, formal tone.
+- 300–400 words TOTAL across opening, alignment, fit_evidence, closing.
+- Reference ONLY facts present in the provided CV JSON.
+- No pronouns (I/me/my/we/us/he/she).
+- Structure: Opening → Alignment → Fit Evidence → Closing.
+- Include "jd_signals_used" array with concrete JD terms addressed.
+- Include "grounding_refs" array showing which CV sections are referenced (optional but recommended).
+
+VALIDATE BEFORE RETURN
+- 300–400 words total across the four paragraphs.
+- Every fact must be supported by the provided CV JSON.
+- Output JSON only.`;
+
+    const userPrompt = `Generate a tailored cover letter for this job.
+
+JOB:
+Company: ${jdSpec.company || "Target Company"}
+Role: ${jdSpec.role}
+Key requirements: ${jdSpec.must_have.slice(0, 5).join(', ')}
+
+CANDIDATE CV SUMMARY:
+Name: ${cv.header.full_name}
+Headline: ${cv.headline}
+Profile: ${cv.profile_summary}
+Key skills: ${cv.key_skills.slice(0, 8).join(', ')}
+Recent role: ${cv.experience[0]?.title} at ${cv.experience[0]?.employer}
+
+REQUIRED JSON STRUCTURE:
+{
+  "header": {
+    "full_name": "${cv.header.full_name}",
+    "contact_block": "${cv.header.email} | ${cv.header.phone || ''} | ${cv.header.city_region || ''}",
+    "city_region": "${cv.header.city_region || ''}"
+  },
+  "meta": {
+    "date_iso": "2025-10-29",
+    "recipient": {
+      "name": "Hiring Manager",
+      "title": "Head of Talent Acquisition",
+      "company": "${jdSpec.company || 'Target Company'}",
+      "address": "${cv.header.city_region || 'London'}"
+    },
+    "subject": "Application: ${jdSpec.role}"
+  },
+  "paragraphs": {
+    "opening": "Opening paragraph expressing interest...",
+    "alignment": "How background aligns with role requirements...",
+    "fit_evidence": "Specific achievements and evidence of fit from CV...",
+    "closing": "Closing paragraph with call to action..."
+  },
+  "sign_off": {
+    "closing": "Kind regards",
+    "name": "${cv.header.full_name}"
+  }
+}
+
+CRITICAL: 
+- Total word count across all 4 paragraphs: 300-400 words
+- Reference only facts from the CV summary above
+- Use UK spelling and formal business tone`;
+
+    const coverLetter = await this.generateCoverLetter(cv, jdSpec);
+    return { coverLetter, prompts: { system: systemPrompt, user: userPrompt } };
+  }
+
+  /**
+   * Wrapper: Generate analysis with prompts for traceability
+   */
+  async generateAnalysisWithPrompts(
+    cv: CvDocument,
+    coverLetter: CoverLetter,
+    jdSpec: JdSpec,
+    evaluationCriteria: EvaluationCriteria
+  ): Promise<{ 
+    scorecard: Scorecard; 
+    recommendations: Recommendation[];
+    prompts: { system: string; user: string };
+  }> {
+    const systemPrompt = `You are a senior recruitment consultant. Return ONE valid JSON object only (no prose, no markdown).
+
+GOAL
+1) Generate a scorecard evaluating how well the CV and cover letter align with the job requirements using the provided evaluation criteria.
+2) Provide 4-7 specific recommendations for how to strengthen the application in Pass 2.
+
+RULES
+- Scores are integers from 1 to 10.
+- Be objective and evidence-based.
+- For each criterion, provide specific JD expectations and assess CV strengths.
+- Recommendations should be actionable and specific.
+- Output valid JSON only.`;
+
+    const criteriaContext = evaluationCriteria.map(c =>
+      `${c.name} (${c.weight_percent}%): Look for ${c.jd_signals.join(', ')}`
+    ).join('\n');
+
+    const userPrompt = `Evaluate this application and provide a scorecard + recommendations.
+
+EVALUATION CRITERIA:
+${criteriaContext}
+
+JOB REQUIREMENTS:
+Role: ${jdSpec.role}
+Must-have: ${jdSpec.must_have.join(', ')}
+
+CV SUMMARY:
+Name: ${cv.header.full_name}
+Headline: ${cv.headline}
+Key Skills: ${cv.key_skills.join(', ')}
+Recent Experience: ${cv.experience[0]?.title} at ${cv.experience[0]?.employer} (${cv.experience[0]?.dates.from_year}-${cv.experience[0]?.dates.to_year || 'Present'})
+
+REQUIRED JSON STRUCTURE:
+{
+  "scorecard": {
+    "scorecard": [
+      {
+        "area": "Criterion name",
+        "score_1_to_10": 8,
+        "jd_expectation": "What the job requires...",
+        "cv_strength": "How the CV addresses this..."
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "priority": "high",
+      "section": "experience",
+      "issue": "Description of the gap or weakness",
+      "suggestion": "Specific recommendation to address it"
+    }
+  ]
+}
+
+CRITICAL: 
+- Include one scorecard item per evaluation criterion
+- Scores must be integers 1-10
+- Provide 4-7 actionable recommendations`;
+
+    const { scorecard, recommendations } = await this.generateAnalysis(cv, coverLetter, jdSpec, evaluationCriteria);
+    return { scorecard, recommendations, prompts: { system: systemPrompt, user: userPrompt } };
+  }
+
+  /**
    * Pass 1: Generate initial CV and cover letter drafts with scorecard analysis
    */
   async generateDraft(
@@ -666,27 +949,41 @@ CRITICAL:
     coverLetterDraft: CoverLetter;
     scorecard: Scorecard;
     recommendations: Recommendation[];
+    rawCvInput: string;
+    prompts: {
+      phase0_jd_analysis: { system: string; user: string };
+      phase1a_cv: { system: string; user: string };
+      phase1b_cover_letter: { system: string; user: string };
+      phase1c_analysis: { system: string; user: string };
+    };
   }> {
+    // Store all prompts for traceability
+    const prompts: any = {};
+    
     // Phase 0: Analyze job posting to extract JD spec and evaluation criteria
     console.log("Phase 0: Analyzing job posting...");
-    const { jdSpec, evaluationCriteria } = await this.analyzeJobPosting(jobPosting);
+    const { jdSpec, evaluationCriteria, prompts: phase0Prompts } = await this.analyzeJobPosting(jobPosting);
+    prompts.phase0_jd_analysis = phase0Prompts;
     
     // Phase 1A: Generate CV
     console.log("Phase 1A: Generating CV...");
-    const cvDraft = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria);
+    const { cv: cvDraft, prompts: phase1aPrompts } = await this.generateCVWithPrompts(candidateProfile, jdSpec, evaluationCriteria);
+    prompts.phase1a_cv = phase1aPrompts;
     
     // Phase 1B: Generate cover letter
     console.log("Phase 1B: Generating cover letter...");
-    const coverLetterDraft = await this.generateCoverLetter(cvDraft, jdSpec);
+    const { coverLetter: coverLetterDraft, prompts: phase1bPrompts } = await this.generateCoverLetterWithPrompts(cvDraft, jdSpec);
+    prompts.phase1b_cover_letter = phase1bPrompts;
     
     // Phase 1C: Generate analysis (scorecard + recommendations)
     console.log("Phase 1C: Generating analysis...");
-    const { scorecard, recommendations } = await this.generateAnalysis(
+    const { scorecard, recommendations, prompts: phase1cPrompts } = await this.generateAnalysisWithPrompts(
       cvDraft,
       coverLetterDraft,
       jdSpec,
       evaluationCriteria
     );
+    prompts.phase1c_analysis = phase1cPrompts;
     
     console.log("Draft generation complete!");
     return {
@@ -696,6 +993,8 @@ CRITICAL:
       coverLetterDraft,
       scorecard,
       recommendations,
+      rawCvInput: candidateProfile,
+      prompts,
     };
   }
 

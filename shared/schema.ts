@@ -98,6 +98,11 @@ export type InsertJobPosting = z.infer<typeof insertJobPostingSchema>;
 // Draft documents - Pass 1 outputs
 export const drafts = pgTable("drafts", {
   runId: uuid("run_id").primaryKey().references(() => runs.id, { onDelete: 'cascade' }),
+  
+  // Traceability fields
+  rawCvInput: text("raw_cv_input"), // The exact CV text sent to AI (full or condensed)
+  promptsJsonb: jsonb("prompts_jsonb"), // All prompts used in Pass 1
+  
   jdSpecJsonb: jsonb("jd_spec_jsonb").notNull(), // Structured JD extraction
   evaluationCriteriaJsonb: jsonb("evaluation_criteria_jsonb").notNull(), // Weighted criteria (4-7 items)
   cvJsonb: jsonb("cv_jsonb").notNull(),
@@ -115,6 +120,10 @@ export type InsertDraft = z.infer<typeof insertDraftSchema>;
 // Final documents - Pass 2 outputs
 export const finals = pgTable("finals", {
   runId: uuid("run_id").primaryKey().references(() => runs.id, { onDelete: 'cascade' }),
+  
+  // Traceability fields
+  promptsJsonb: jsonb("prompts_jsonb"), // All prompts used in Pass 2
+  
   cvJsonb: jsonb("cv_jsonb").notNull(),
   coverLetterJsonb: jsonb("cover_letter_jsonb").notNull(),
   scorecardPass2Jsonb: jsonb("scorecard_pass2_jsonb").notNull(),
