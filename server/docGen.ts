@@ -15,6 +15,13 @@ export class DocumentGenerationService {
    */
   async generateCvDocx(cv: CvDocument): Promise<Buffer> {
     const doc = new Document({
+      creator: "CV Tailoring Pro",
+      title: "Professional CV",
+      description: "AI-tailored curriculum vitae for job applications",
+      subject: "Career Document",
+      keywords: "CV, resume, career, professional",
+      lastModifiedBy: "CV Tailoring Pro",
+      revision: 1,
       sections: [
         {
           children: [
@@ -232,6 +239,13 @@ export class DocumentGenerationService {
    */
   async generateCoverLetterDocx(coverLetter: CoverLetter): Promise<Buffer> {
     const doc = new Document({
+      creator: "CV Tailoring Pro",
+      title: "Professional Cover Letter",
+      description: "AI-tailored cover letter for job applications",
+      subject: "Cover Letter",
+      keywords: "cover letter, job application, professional",
+      lastModifiedBy: "CV Tailoring Pro",
+      revision: 1,
       sections: [
         {
           children: [
@@ -352,6 +366,13 @@ export class DocumentGenerationService {
    */
   async generateEnhancementReportDocx(changes: TraceChange[]): Promise<Buffer> {
     const doc = new Document({
+      creator: "CV Tailoring Pro",
+      title: "CV Enhancement Report",
+      description: "Detailed summary of AI-driven improvements to your CV",
+      subject: "Enhancement Report",
+      keywords: "CV improvements, enhancement, changes, optimization",
+      lastModifiedBy: "CV Tailoring Pro",
+      revision: 1,
       sections: [
         {
           children: [
