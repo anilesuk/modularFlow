@@ -55,6 +55,9 @@ export const candidates = pgTable("candidates", {
   defaultFontSize: integer("default_font_size").notNull().default(11),
   defaultMarginsCm: varchar("default_margins_cm").notNull().default("2.5"),
   
+  // CV generation preferences (word counts, bullet counts, etc.)
+  cvPreferences: jsonb("cv_preferences"), // Stores CvGenerationConfig from server/cvConfig.ts
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
