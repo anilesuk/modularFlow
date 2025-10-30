@@ -409,6 +409,8 @@ MANDATORY REQUIREMENTS:
 - List them in REVERSE chronological order (most recent first, oldest last)
 - If a candidate has 28+ years of experience, you should have 4-6+ experience entries
 - Do NOT skip older roles - include them ALL
+- USE THE ACTUAL DATES from the candidate profile - DO NOT invent or modify dates
+- USE THE ACTUAL company names, job titles, and locations from the candidate profile
 - Variable achievement counts:
   * Most recent role: 5-7 bullets
   * Second most recent: 3-5 bullets  
@@ -418,38 +420,38 @@ MANDATORY REQUIREMENTS:
 {
   "experience": [
     {
-      "employer": "Cognizant",
-      "dates": { "from_year": 2015, "to_year": 2023 },
+      "employer": "Company Name from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [...]
     }
   ]
 }
 
-✓ CORRECT - Showing ALL career history:
+✓ CORRECT - Showing ALL career history (use ACTUAL dates/names from candidate profile):
 {
   "experience": [
     {
-      "employer": "Cognizant", 
-      "title": "Senior Director",
-      "dates": { "from_year": 2015, "to_year": 2023 },
+      "employer": "Most Recent Company Name", 
+      "title": "Most Recent Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current },
       "achievements": [5-7 bullets with grounding]
     },
     {
-      "employer": "Cognizant",
-      "title": "Director Projects",
-      "dates": { "from_year": 2007, "to_year": 2014 },
+      "employer": "Second Company Name",
+      "title": "Second Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [3-5 bullets with grounding]
     },
     {
-      "employer": "Infosys",
-      "title": "Consulting Manager",
-      "dates": { "from_year": 2000, "to_year": 2006 },
+      "employer": "Third Company Name",
+      "title": "Third Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [2 bullets with grounding]
     },
     {
-      "employer": "Ramco Systems",
-      "title": "Senior Project Manager",
-      "dates": { "from_year": 1995, "to_year": 1999 },
+      "employer": "Fourth Company Name",
+      "title": "Fourth Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [2 bullets with grounding]
     }
   ]
@@ -510,10 +512,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "technical_skills": "Tool1 | Tool2 | Tool3",
   "experience": [
     {
-      "employer": "Most Recent Company",
-      "location": "City, Country",
-      "title": "Most Recent Job Title",
-      "dates": { "from_year": 2020, "to_year": 2024 },
+      "employer": "Most Recent Company Name from Profile",
+      "location": "City, Country from Profile",
+      "title": "Most Recent Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current role },
       "overview": "Brief scope of most recent role",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -524,10 +526,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       ]
     },
     {
-      "employer": "Second Most Recent Company",
-      "location": "City, Country",
-      "title": "Second Most Recent Job Title",
-      "dates": { "from_year": 2015, "to_year": 2019 },
+      "employer": "Second Most Recent Company Name from Profile",
+      "location": "City, Country from Profile",
+      "title": "Second Most Recent Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "overview": "Brief scope of second role",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -536,10 +538,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       ]
     },
     {
-      "employer": "Third Company",
-      "location": "City, Country",
-      "title": "Third Job Title",
-      "dates": { "from_year": 2010, "to_year": 2014 },
+      "employer": "Third Company Name from Profile",
+      "location": "City, Country from Profile",
+      "title": "Third Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "overview": "Brief scope",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -547,10 +549,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       ]
     },
     {
-      "employer": "Fourth Company (if applicable)",
-      "location": "City, Country",
-      "title": "Fourth Job Title",
-      "dates": { "from_year": 2005, "to_year": 2009 },
+      "employer": "Fourth Company Name from Profile (if applicable)",
+      "location": "City, Country from Profile",
+      "title": "Fourth Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "overview": "Brief scope",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -1008,6 +1010,8 @@ MANDATORY REQUIREMENTS:
 - List them in REVERSE chronological order (most recent first, oldest last)
 - If a candidate has 28+ years of experience, you should have 4-6+ experience entries
 - Do NOT skip older roles - include them ALL
+- USE THE ACTUAL DATES from the candidate profile - DO NOT invent or modify dates
+- USE THE ACTUAL company names, job titles, and locations from the candidate profile
 - Variable achievement counts:
   * Most recent role: 5-7 bullets
   * Second most recent: 3-5 bullets  
@@ -1017,38 +1021,38 @@ MANDATORY REQUIREMENTS:
 {
   "experience": [
     {
-      "employer": "Cognizant",
-      "dates": { "from_year": 2015, "to_year": 2023 },
+      "employer": "Company Name from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [...]
     }
   ]
 }
 
-✓ CORRECT - Showing ALL career history:
+✓ CORRECT - Showing ALL career history (use ACTUAL dates/names from candidate profile):
 {
   "experience": [
     {
-      "employer": "Cognizant", 
-      "title": "Senior Director",
-      "dates": { "from_year": 2015, "to_year": 2023 },
+      "employer": "Most Recent Company Name", 
+      "title": "Most Recent Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current },
       "achievements": [5-7 bullets with grounding]
     },
     {
-      "employer": "Cognizant",
-      "title": "Director Projects",
-      "dates": { "from_year": 2007, "to_year": 2014 },
+      "employer": "Second Company Name",
+      "title": "Second Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [3-5 bullets with grounding]
     },
     {
-      "employer": "Infosys",
-      "title": "Consulting Manager",
-      "dates": { "from_year": 2000, "to_year": 2006 },
+      "employer": "Third Company Name",
+      "title": "Third Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [2 bullets with grounding]
     },
     {
-      "employer": "Ramco Systems",
-      "title": "Senior Project Manager",
-      "dates": { "from_year": 1995, "to_year": 1999 },
+      "employer": "Fourth Company Name",
+      "title": "Fourth Job Title",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "achievements": [2 bullets with grounding]
     }
   ]
@@ -1109,10 +1113,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "technical_skills": "Tool1 | Tool2 | Tool3",
   "experience": [
     {
-      "employer": "Most Recent Company",
-      "location": "City, Country",
-      "title": "Most Recent Job Title",
-      "dates": { "from_year": 2020, "to_year": 2024 },
+      "employer": "Most Recent Company Name from Profile",
+      "location": "City, Country from Profile",
+      "title": "Most Recent Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current role },
       "overview": "Brief scope of most recent role",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -1123,10 +1127,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       ]
     },
     {
-      "employer": "Second Most Recent Company",
-      "location": "City, Country",
-      "title": "Second Most Recent Job Title",
-      "dates": { "from_year": 2015, "to_year": 2019 },
+      "employer": "Second Most Recent Company Name from Profile",
+      "location": "City, Country from Profile",
+      "title": "Second Most Recent Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "overview": "Brief scope of second role",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -1135,10 +1139,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       ]
     },
     {
-      "employer": "Third Company",
-      "location": "City, Country",
-      "title": "Third Job Title",
-      "dates": { "from_year": 2010, "to_year": 2014 },
+      "employer": "Third Company Name from Profile",
+      "location": "City, Country from Profile",
+      "title": "Third Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "overview": "Brief scope",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -1146,10 +1150,10 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       ]
     },
     {
-      "employer": "Fourth Company (if applicable)",
-      "location": "City, Country",
-      "title": "Fourth Job Title",
-      "dates": { "from_year": 2005, "to_year": 2009 },
+      "employer": "Fourth Company Name from Profile (if applicable)",
+      "location": "City, Country from Profile",
+      "title": "Fourth Job Title from Profile",
+      "dates": { "from_year": YYYY, "to_year": YYYY },
       "overview": "Brief scope",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
