@@ -566,6 +566,7 @@ ${cvContent}
       draftResult.coverLetterDraft,
       jobPosting.payload as any,
       draftResult.recommendations,
+      draftResult.scorecard, // Pass Phase 1 baseline scorecard for comparison
       cvConfig
     );
 
