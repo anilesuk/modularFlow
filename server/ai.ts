@@ -450,6 +450,32 @@ CRITICAL:
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
     
+    // Auto-repair: Move sign_off from paragraphs to root level if misplaced
+    if (result.paragraphs?.sign_off && !result.sign_off) {
+      console.log("Auto-repair: Moving sign_off from paragraphs to root level");
+      result.sign_off = result.paragraphs.sign_off;
+      delete result.paragraphs.sign_off;
+    }
+    
+    // Auto-repair: Ensure sign_off exists
+    if (!result.sign_off) {
+      console.log("Auto-repair: Adding missing sign_off");
+      result.sign_off = {
+        closing: "Kind regards",
+        name: cv.header.full_name
+      };
+    }
+    
+    // Auto-repair: Move jd_signals_used/grounding_refs from paragraphs to root
+    if (result.paragraphs?.jd_signals_used && !result.jd_signals_used) {
+      result.jd_signals_used = result.paragraphs.jd_signals_used;
+      delete result.paragraphs.jd_signals_used;
+    }
+    if (result.paragraphs?.grounding_refs && !result.grounding_refs) {
+      result.grounding_refs = result.paragraphs.grounding_refs;
+      delete result.paragraphs.grounding_refs;
+    }
+    
     try {
       return coverLetterSchema.parse(result);
     } catch (error: any) {
