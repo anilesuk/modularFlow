@@ -41,6 +41,17 @@ CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and c
 - **Field Name Alignment**: Fixed achievement field from "text" to "bullet" to match schema
 - **Validation Status**: AI consistently provides grounding.source_snippet; system blocks ungrounded content
 
+### ✅ CV Experience and Profile Summary Updates (COMPLETE - Current Session)
+- **All Experiences Included**: Removed 10-12 year restriction; ALL experiences now appear in reverse chronological order
+- **Variable Achievement Counts**: 
+  - Most recent role: 5-7 bullets
+  - Second role: 3-5 bullets
+  - Older roles: 2 bullets each
+- **Profile Summary**: Changed from 80-220 characters to 100-125 WORDS
+- **Validation**: 3-layer enforcement (AI prompts + runtime checks + Zod schema refinement)
+- **Schema Safety**: Zod refine() validates word count at schema level; runtime checks in Phase 1A and Phase 2
+- **Tested**: Pending end-to-end verification with long career history
+
 ### ⚠️ Known Issues
 - **Cover Letter Schema**: Mismatches remain in sign_off field and recipient structure
 - **Impact**: Cover letter generation may fail validation; CV generation working correctly

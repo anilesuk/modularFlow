@@ -27,11 +27,12 @@ function autoRepairAIOutput(result: any): any {
     }
   }
   
-  // Repair profile_summary length: truncate if too long
+  // Validate profile_summary word count (100-125 words)
   if (cv.profile_summary && typeof cv.profile_summary === 'string') {
-    if (cv.profile_summary.length > 220) {
-      console.log(`Auto-repair: Truncating profile_summary from ${cv.profile_summary.length} to 220 chars`);
-      cv.profile_summary = cv.profile_summary.substring(0, 217) + '...';
+    const wordCount = cv.profile_summary.trim().split(/\s+/).length;
+    if (wordCount < 100 || wordCount > 125) {
+      console.log(`Auto-repair WARNING: profile_summary has ${wordCount} words (should be 100-125)`);
+      // Don't auto-truncate by words - AI should fix this in retry
     }
   }
   
@@ -308,11 +309,14 @@ NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
-- Profile summary length: 80–220 characters (strict).
+- Profile summary length: 100–125 WORDS (strict - count words, not characters).
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Quantify only where supported by the candidate profile (no invented numbers).
-- Include 2-4 DETAILED experience entries covering the last 10-12 years; summarise earlier career in earlier_career_summary WITHOUT dates.
-- Each experience entry should have 2-4 achievements with grounding.
+- Include ALL experiences from the candidate profile in reverse chronological order (most recent first).
+- Variable achievement counts by recency:
+  * Most recent role: 5-7 achievement bullets with grounding
+  * Second most recent role: 3-5 achievement bullets with grounding
+  * All older roles: 2 achievement bullets each with grounding
 - Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
 GROUNDING & ALIGNMENT (MANDATORY)
@@ -325,7 +329,7 @@ GROUNDING & ALIGNMENT (MANDATORY)
   Each item maps an evaluation criterion to which CV sections address it and how strongly.
 
 VALIDATE BEFORE RETURN
-- profile_summary 80–220 chars; key_skills length 8–16.
+- profile_summary 100–125 WORDS (count words!); key_skills length 8–16.
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -353,7 +357,7 @@ REQUIRED JSON STRUCTURE:
 {
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
-  "profile_summary": "80-220 char summary",
+  "profile_summary": "100-125 word summary (count words carefully)",
   "key_skills": ["Skill 1", "Skill 2", ...8-16 items],
   "technical_skills": "Tool1 | Tool2 | Tool3",
   "experience": [
@@ -384,7 +388,7 @@ REQUIRED JSON STRUCTURE:
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 80-220 chars, key_skills has 8-16 items.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 100-125 WORDS, key_skills has 8-16 items.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -420,6 +424,12 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 8
       // Runtime validation: Warn if criteria_coverage is missing
       if (!cv.criteria_coverage || cv.criteria_coverage.length === 0) {
         console.warn('WARNING: AI did not provide criteria_coverage mapping');
+      }
+      
+      // Runtime validation: Enforce 100-125 word count for profile_summary
+      const wordCount = cv.profile_summary.trim().split(/\s+/).length;
+      if (wordCount < 100 || wordCount > 125) {
+        throw new Error(`Profile summary has ${wordCount} words, must be 100-125 words`);
       }
       
       return cv;
@@ -745,11 +755,14 @@ NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
-- Profile summary length: 80–220 characters (strict).
+- Profile summary length: 100–125 WORDS (strict - count words, not characters).
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Quantify only where supported by the candidate profile (no invented numbers).
-- Include 2-4 DETAILED experience entries covering the last 10-12 years; summarise earlier career in earlier_career_summary WITHOUT dates.
-- Each experience entry should have 2-4 achievements with grounding.
+- Include ALL experiences from the candidate profile in reverse chronological order (most recent first).
+- Variable achievement counts by recency:
+  * Most recent role: 5-7 achievement bullets with grounding
+  * Second most recent role: 3-5 achievement bullets with grounding
+  * All older roles: 2 achievement bullets each with grounding
 - Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
 GROUNDING & ALIGNMENT (MANDATORY)
@@ -762,7 +775,7 @@ GROUNDING & ALIGNMENT (MANDATORY)
   Each item maps an evaluation criterion to which CV sections address it and how strongly.
 
 VALIDATE BEFORE RETURN
-- profile_summary 80–220 chars; key_skills length 8–16.
+- profile_summary 100–125 WORDS (count words!); key_skills length 8–16.
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -790,7 +803,7 @@ REQUIRED JSON STRUCTURE:
 {
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
-  "profile_summary": "80-220 char summary",
+  "profile_summary": "100-125 word summary (count words carefully)",
   "key_skills": ["Skill 1", "Skill 2", ...8-16 items],
   "technical_skills": "Tool1 | Tool2 | Tool3",
   "experience": [
@@ -821,7 +834,7 @@ REQUIRED JSON STRUCTURE:
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 80-220 chars, key_skills has 8-16 items.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 100-125 WORDS, key_skills has 8-16 items.`;
 
     const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria);
     return { cv, prompts: { system: systemPrompt, user: userPrompt } };
@@ -1062,7 +1075,7 @@ RULES
 - Apply ALL recommendations without inventing facts.
 - Preserve or update grounding for any edited achievement (keep grounding.source_snippet; update if the sentence changed).
 - No pronouns. Years only. SOAR bullets; end with a period.
-- Profile summary: 80–220 chars (strict).
+- Profile summary: 100–125 WORDS (strict - count words, not characters).
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Cover letter: 300–400 words; UK style; reflect final CV.
 - Rescore against the evaluation criteria and include overall_score_1_to_10 (weighted average).
@@ -1070,7 +1083,7 @@ RULES
 - Track significant changes in addedPoints with exact final quotes and target_section.
 
 VALIDATE BEFORE RETURN
-- profile_summary 80–220 chars; key_skills 8–16; scorecard 4–12.
+- profile_summary 100–125 WORDS (count words!); key_skills 8–16; scorecard 4–12.
 - criterion_ref values exist in evaluationCriteria.name.
 - Dates are years only; achievements end with a period; each includes grounding.source_snippet.
 - Cover letter 300–400 words.
@@ -1143,6 +1156,12 @@ Return refined JSON with addedPoints tracking changes. Calculate overall_score_1
         if (missingGrounding.length > 0) {
           throw new Error(`MANDATORY GROUNDING MISSING in optimized CV: ${missingGrounding.length} achievements lack source snippets at: ${missingGrounding.join(', ')}`);
         }
+      }
+      
+      // Runtime validation: Enforce 100-125 word count for profile_summary
+      const wordCount = cvFinal.profile_summary.trim().split(/\s+/).length;
+      if (wordCount < 100 || wordCount > 125) {
+        throw new Error(`Optimized profile summary has ${wordCount} words, must be 100-125 words`);
       }
       
       // Safely validate addedPoints array

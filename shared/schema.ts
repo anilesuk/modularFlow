@@ -286,7 +286,15 @@ export const cvDocumentSchema = z.object({
     linkedin: z.string().optional(),
   }),
   headline: z.string(),
-  profile_summary: z.string().min(80).max(220),
+  profile_summary: z.string().min(1).refine(
+    (val) => {
+      const wordCount = val.trim().split(/\s+/).length;
+      return wordCount >= 100 && wordCount <= 125;
+    },
+    {
+      message: "Profile summary must be between 100 and 125 words",
+    }
+  ),
   key_skills: z.array(z.string()).min(8).max(16),
   technical_skills: z.string(),
   experience: z.array(z.object({
