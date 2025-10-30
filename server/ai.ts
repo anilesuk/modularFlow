@@ -310,6 +310,9 @@ WRONG FORMAT (will be REJECTED):
 COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
 is less than 100 words or more than 125 words.
 
+DO NOT include word count annotations like "(112 words)" in the summary text!
+The summary should end with a period, not with a word count note.
+
 Example: "Strategic technology leader with 20+ years of experience driving 
 enterprise-scale digital transformation initiatives across Fortune 500 companies. 
 Deep expertise in cloud architecture, data analytics, and AI/ML solutions, with 
@@ -320,8 +323,8 @@ reliability. Expert in modern data platforms including Databricks, Snowflake, an
 Synapse Analytics. Known for translating complex technical concepts into business 
 value and driving innovation through emerging technologies. Passionate about 
 mentoring engineering talent and establishing best practices for scalable solutions. 
-Committed to delivering measurable business outcomes through technology excellence." 
-[Word count: 112 words ✓]
+Committed to delivering measurable business outcomes through technology excellence."
+(This example is 112 words - yours should be 100-125 words)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -775,6 +778,9 @@ WRONG FORMAT (will be REJECTED):
 COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
 is less than 100 words or more than 125 words.
 
+DO NOT include word count annotations like "(112 words)" in the summary text!
+The summary should end with a period, not with a word count note.
+
 Example: "Strategic technology leader with 20+ years of experience driving 
 enterprise-scale digital transformation initiatives across Fortune 500 companies. 
 Deep expertise in cloud architecture, data analytics, and AI/ML solutions, with 
@@ -785,8 +791,8 @@ reliability. Expert in modern data platforms including Databricks, Snowflake, an
 Synapse Analytics. Known for translating complex technical concepts into business 
 value and driving innovation through emerging technologies. Passionate about 
 mentoring engineering talent and establishing best practices for scalable solutions. 
-Committed to delivering measurable business outcomes through technology excellence." 
-[Word count: 112 words ✓]
+Committed to delivering measurable business outcomes through technology excellence."
+(This example is 112 words - yours should be 100-125 words)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1109,11 +1115,22 @@ CRITICAL:
   }> {
     const systemPrompt = `You refine CV and cover-letter JSON from Pass 1 using explicit recommendations. Return ONE valid JSON object only.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨🚨🚨 PROFILE SUMMARY: MUST BE 100-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
+is less than 100 words or more than 125 words.
+
+DO NOT include word count annotations like "(112 words)" in the summary text!
+The summary should end with a period, not with a word count note.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 RULES
 - Apply ALL recommendations without inventing facts.
 - Preserve or update grounding for any edited achievement (keep grounding.source_snippet; update if the sentence changed).
 - No pronouns. Years only. SOAR bullets; end with a period.
-- Profile summary: 100–125 WORDS (strict - count words, not characters).
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Cover letter: 300–400 words; UK style; reflect final CV.
 - Rescore against the evaluation criteria and include overall_score_1_to_10 (weighted average).
