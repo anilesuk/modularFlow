@@ -118,13 +118,16 @@ export class ScraperService {
 
       // Clean up the extracted data
       const cleanText = (text: string) => text.replace(/\s+/g, " ").trim();
+      
+      // Type assertion for evaluated data
+      const scrapedData = data as { company: string; role: string; location: string; description: string; rawHtml: string };
 
       return {
-        company: cleanText(data.company) || "Unknown Company",
-        role: cleanText(data.role) || "Unknown Role",
-        location: data.location ? cleanText(data.location) : null,
-        description: cleanText(data.description),
-        rawHtml: data.rawHtml,
+        company: cleanText(scrapedData.company) || "Unknown Company",
+        role: cleanText(scrapedData.role) || "Unknown Role",
+        location: scrapedData.location ? cleanText(scrapedData.location) : null,
+        description: cleanText(scrapedData.description),
+        rawHtml: scrapedData.rawHtml,
       };
     } finally {
       await browser.close();

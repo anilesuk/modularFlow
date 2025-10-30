@@ -161,131 +161,108 @@ CRITICAL RULES - READ THE ACTUAL JOB DESCRIPTION
 
     const userPrompt = `Analyze the following job posting and produce the JSON requested in the system prompt.
 
-IMPORTANT: Extract the ACTUAL role title from this specific job description. Do not use generic examples.
+⚠️ CRITICAL: The example values below (ACME Corporation, Product Manager, etc.) are GENERIC PLACEHOLDERS to show JSON structure ONLY.
+YOU MUST extract the ACTUAL company name, job title, location, and all other details from the real job description provided below.
+DO NOT copy "ACME Corporation" or "Product Manager" - read the actual job posting text and extract the real information.
 
-JOB POSTING:
+JOB POSTING TO ANALYZE:
 Company: ${jobPosting.company?.name || "Not specified"}
 Role: ${jobPosting.role.title}
 Location: ${jobPosting.role.location || "Not specified"}
 Description: ${jobPosting.description.clean_text}
 
-OUTPUT SHAPE (replace ALL placeholder values with ACTUAL data from the job description above):
+OUTPUT SHAPE (DO NOT copy the example values - extract REAL data from above):
 {
   "jdSpec": {
     "company": {
-      "name": "[Extract actual company name from JD]",
-      "website": "[Extract or infer from JD]",
-      "industry": "[Extract actual industry from JD]",
-      "hq": "[Extract actual HQ location from JD]"
+      "name": "ACME Corporation",
+      "website": "https://example.com",
+      "industry": "Technology",
+      "hq": "Example City, Country"
     },
     "role": {
-      "title": "[MUST be the ACTUAL job title from the description - e.g., if the JD says 'Chief Data Officer', use 'Chief Data Officer']",
-      "location": "[Extract actual location from JD]",
-      "seniority": "[Extract actual seniority level from JD]",
-      "employment_type": "[Extract actual employment type from JD]"
+      "title": "Product Manager",
+      "location": "Example City",
+      "seniority": "Senior",
+      "employment_type": "Full-time"
     },
-    "qualifications": ["Bachelor's degree in Computer Science", "10+ years experience", "AWS Certification preferred"],
-    "responsibilities": ["FULL DETAIL - Extract ALL responsibilities from JD without condensing", "Design and build data pipelines", "Lead team of data engineers", "Collaborate with stakeholders"],
-    "experience": ["FULL DETAIL - Extract ALL experience requirements without condensing", "Senior-level data engineering", "Cloud architecture experience"],
-    "success_for_role": ["What success looks like in first 90 days", "Key deliverables and milestones"],
-    "why_this_company": ["Company mission and vision", "Growth opportunities", "Unique selling points"],
-    "must_have": ["Required skill 1", "Required skill 2", "Required experience"],
-    "nice_to_have": ["Preferred skill 1", "Preferred qualification"],
-    "skills": ["Skill 1", "Skill 2", "Skill 3"],
-    "tools": ["Tool 1", "Tool 2"],
-    "domains": ["Domain 1", "Industry 1"],
+    "qualifications": ["Extract ALL qualifications from JD", "Another qualification"],
+    "responsibilities": ["Extract ALL responsibilities - do NOT condense", "Another responsibility"],
+    "experience": ["Extract ALL experience requirements - do NOT condense", "Another experience requirement"],
+    "success_for_role": ["What good looks like", "Another success metric"],
+    "why_this_company": ["Company mission", "Another reason"],
+    "must_have": ["Required skill", "Another required skill"],
+    "nice_to_have": ["Preferred skill"],
+    "skills": ["Skill extracted from JD"],
+    "tools": ["Tool from JD"],
+    "domains": ["Domain from JD"],
     "scope_indicators": {
-      "team_size": "5-10 people",
-      "budget": "£500K annually",
-      "regions": "UK & Europe",
-      "stakeholder_levels": "C-suite and board"
+      "team_size": "Extract from JD or use Not specified",
+      "budget": "Extract from JD or use Not specified",
+      "regions": "Extract from JD or use Not specified",
+      "stakeholder_levels": "Extract from JD or use Not specified"
     },
-    "outcomes_kpis": ["Outcome 1", "KPI 1"],
-    "keywords": ["keyword1", "keyword2", "keyword3"]
+    "outcomes_kpis": ["KPI from JD"],
+    "keywords": ["keyword from JD"]
   },
   "evaluationCriteria": [
     {
-      "name": "Technical Skills & Expertise",
-      "jd_signals": ["Python", "SQL", "Cloud platforms"],
+      "name": "Criterion 1 Name (extract from JD)",
+      "jd_signals": ["Signal from JD", "Another signal"],
       "weight_percent": 25,
       "rubric": {
-        "excellent": "Expert level in all required technologies with proven track record",
-        "good": "Strong proficiency in most required technologies",
-        "fair": "Some experience with required technologies",
-        "poor": "Limited relevant technical skills"
+        "excellent": "Description for excellent performance",
+        "good": "Description for good performance",
+        "fair": "Description for fair performance",
+        "poor": "Description for poor performance"
       },
       "target_cv_fields": ["technical_skills", "key_skills", "experience"]
     },
     {
-      "name": "Relevant Experience & Seniority",
-      "jd_signals": ["Senior role", "10+ years"],
+      "name": "Criterion 2 Name (extract from JD)",
+      "jd_signals": ["Signal from JD"],
       "weight_percent": 20,
       "rubric": {
-        "excellent": "Extensive experience in exactly matching role with measurable outcomes",
-        "good": "Solid experience in similar role",
-        "fair": "Some relevant experience",
-        "poor": "Limited relevant experience"
+        "excellent": "Excellent performance description",
+        "good": "Good performance description",
+        "fair": "Fair performance description",
+        "poor": "Poor performance description"
       },
       "target_cv_fields": ["experience", "headline"]
     },
     {
-      "name": "Leadership & Team Management",
-      "jd_signals": ["team leadership", "strategic planning"],
+      "name": "Criterion 3 Name",
+      "jd_signals": ["JD signal"],
+      "weight_percent": 18,
+      "rubric": { "excellent": "...", "good": "...", "fair": "...", "poor": "..." },
+      "target_cv_fields": ["experience"]
+    },
+    {
+      "name": "Criterion 4 Name",
+      "jd_signals": ["JD signal"],
       "weight_percent": 15,
-      "rubric": {
-        "excellent": "Demonstrated senior leadership with quantified business impact",
-        "good": "Evidence of team leadership and results",
-        "fair": "Some leadership indicators",
-        "poor": "Limited leadership evidence"
-      },
+      "rubric": { "excellent": "...", "good": "...", "fair": "...", "poor": "..." },
       "target_cv_fields": ["experience", "profile_summary"]
     },
     {
-      "name": "Industry & Domain Knowledge",
-      "jd_signals": ["Finance", "Regulatory compliance"],
-      "weight_percent": 15,
-      "rubric": {
-        "excellent": "Deep industry expertise with proven domain knowledge",
-        "good": "Solid industry experience",
-        "fair": "Some industry exposure",
-        "poor": "Limited industry background"
-      },
+      "name": "Criterion 5 Name",
+      "jd_signals": ["JD signal"],
+      "weight_percent": 12,
+      "rubric": { "excellent": "...", "good": "...", "fair": "...", "poor": "..." },
+      "target_cv_fields": ["experience"]
+    },
+    {
+      "name": "Criterion 6 Name",
+      "jd_signals": ["JD signal"],
+      "weight_percent": 7,
+      "rubric": { "excellent": "...", "good": "...", "fair": "...", "poor": "..." },
       "target_cv_fields": ["experience", "profile_summary"]
     },
     {
-      "name": "Problem Solving & Innovation",
-      "jd_signals": ["innovative solutions", "complex challenges"],
-      "weight_percent": 10,
-      "rubric": {
-        "excellent": "Demonstrated track record of innovative solutions to complex problems",
-        "good": "Evidence of problem-solving capabilities",
-        "fair": "Some problem-solving experience",
-        "poor": "Limited innovation demonstrated"
-      },
-      "target_cv_fields": ["experience", "achievements"]
-    },
-    {
-      "name": "Communication & Stakeholder Management",
-      "jd_signals": ["stakeholder engagement", "presentation skills"],
-      "weight_percent": 10,
-      "rubric": {
-        "excellent": "Exceptional communication skills with C-level stakeholder management",
-        "good": "Strong communication and stakeholder collaboration",
-        "fair": "Adequate communication skills",
-        "poor": "Limited stakeholder management experience"
-      },
-      "target_cv_fields": ["experience", "profile_summary"]
-    },
-    {
-      "name": "Cultural Fit & Alignment",
-      "jd_signals": ["company values", "team collaboration"],
-      "weight_percent": 5,
-      "rubric": {
-        "excellent": "Perfect alignment with company culture and values",
-        "good": "Strong cultural fit indicators",
-        "fair": "Some alignment with company values",
-        "poor": "Limited cultural fit evidence"
-      },
+      "name": "Criterion 7 Name",
+      "jd_signals": ["JD signal"],
+      "weight_percent": 3,
+      "rubric": { "excellent": "...", "good": "...", "fair": "...", "poor": "..." },
       "target_cv_fields": ["profile_summary", "experience"]
     }
   ]
@@ -309,6 +286,7 @@ RULES:
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 4096,
+      temperature: 0.3, // Slightly higher than default to encourage extraction over copying examples
     });
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
