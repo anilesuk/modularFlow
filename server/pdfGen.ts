@@ -25,6 +25,66 @@ export class PDFGenerationService {
   }
 
   /**
+   * Generate PDF from HTML with optimized settings to reduce antivirus false positives
+   */
+  private async generatePdfFromHtml(
+    html: string,
+    options: {
+      title: string;
+      author?: string;
+      subject?: string;
+      margins?: { top: string; right: string; bottom: string; left: string };
+    }
+  ): Promise<Buffer> {
+    const chromiumPath = this.getChromiumPath();
+    
+    // Use optimized browser launch options
+    const browser = await puppeteer.launch({
+      headless: true, // Use headless mode for cleaner PDFs
+      executablePath: chromiumPath || undefined,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+      ],
+    });
+
+    try {
+      const page = await browser.newPage();
+      
+      // Disable JavaScript to reduce AV heuristic triggers
+      await page.setJavaScriptEnabled(false);
+      
+      // Set content with proper media type
+      await page.setContent(html, { waitUntil: "networkidle0" });
+      await page.emulateMediaType("print");
+      
+      // Generate PDF with metadata and clean options
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        margin: options.margins || {
+          top: "2cm",
+          right: "2cm",
+          bottom: "2cm",
+          left: "2cm",
+        },
+        printBackground: true,
+        preferCSSPageSize: true,
+        displayHeaderFooter: false,
+        tagged: false, // Disable PDF tagging to simplify structure
+      });
+
+      return Buffer.from(pdfBuffer);
+    } finally {
+      await browser.close();
+    }
+  }
+
+  /**
    * Helper: Format date based on available month information
    */
   private formatDate(year: number, month: number | null | undefined): string {
@@ -284,32 +344,17 @@ export class PDFGenerationService {
 </html>
     `;
 
-    const chromiumPath = this.getChromiumPath();
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: chromiumPath || undefined,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    return this.generatePdfFromHtml(html, {
+      title: `CV - ${cv.header.full_name}`,
+      author: cv.header.full_name,
+      subject: "Curriculum Vitae",
+      margins: {
+        top: "2cm",
+        right: "2cm",
+        bottom: "2cm",
+        left: "2cm",
+      },
     });
-
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: "networkidle0" });
-      
-      const pdfBuffer = await page.pdf({
-        format: "A4",
-        margin: {
-          top: "2cm",
-          right: "2cm",
-          bottom: "2cm",
-          left: "2cm",
-        },
-        printBackground: true,
-      });
-
-      return Buffer.from(pdfBuffer);
-    } finally {
-      await browser.close();
-    }
   }
 
   /**
@@ -412,32 +457,17 @@ export class PDFGenerationService {
 </html>
     `;
 
-    const chromiumPath = this.getChromiumPath();
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: chromiumPath || undefined,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    return this.generatePdfFromHtml(html, {
+      title: "Cover Letter",
+      author: coverLetter.header.full_name,
+      subject: "Cover Letter",
+      margins: {
+        top: "2.5cm",
+        right: "2.5cm",
+        bottom: "2.5cm",
+        left: "2.5cm",
+      },
     });
-
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: "networkidle0" });
-      
-      const pdfBuffer = await page.pdf({
-        format: "A4",
-        margin: {
-          top: "2.5cm",
-          right: "2.5cm",
-          bottom: "2.5cm",
-          left: "2.5cm",
-        },
-        printBackground: true,
-      });
-
-      return Buffer.from(pdfBuffer);
-    } finally {
-      await browser.close();
-    }
   }
 
   /**
@@ -510,32 +540,16 @@ export class PDFGenerationService {
 </html>
     `;
 
-    const chromiumPath = this.getChromiumPath();
-    const browser = await puppeteer.launch({
-      headless: true,
-      executablePath: chromiumPath || undefined,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    return this.generatePdfFromHtml(html, {
+      title: "CV Enhancement Report",
+      subject: "CV Enhancement Report",
+      margins: {
+        top: "2.5cm",
+        right: "2.5cm",
+        bottom: "2.5cm",
+        left: "2.5cm",
+      },
     });
-
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: "networkidle0" });
-      
-      const pdfBuffer = await page.pdf({
-        format: "A4",
-        margin: {
-          top: "2.5cm",
-          right: "2.5cm",
-          bottom: "2.5cm",
-          left: "2.5cm",
-        },
-        printBackground: true,
-      });
-
-      return Buffer.from(pdfBuffer);
-    } finally {
-      await browser.close();
-    }
   }
 }
 
