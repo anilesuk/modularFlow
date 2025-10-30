@@ -4,7 +4,16 @@
 CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and cover letters to specific job postings. Its core purpose is to ensure strict ATS compliance, maintain privacy security, and optimize documents through a two-pass AI process with mandatory achievement grounding enforcement. The application features all seven frontend pages, a robust backend API, database integration, authentication, and AI services. It supports both URL-based job description scraping and manual job description input. The project provides a professional, secure, and efficient solution for job seekers with cost-effective AI model usage (gpt-4o-mini).
 
 ## Recent Changes (Latest Session)
-### ✅ User-Specific CV Preferences System (COMPLETE - Current Session)
+### ✅ Database Fallback with Bytea Storage (COMPLETE - Current Session)
+- **Schema**: Added bytea columns (cvBinary, coverLetterBinary, enhancementBinary) to artifacts table using custom Drizzle type
+- **Storage Optimization**: Raw Buffer storage eliminates ~33% storage bloat and encode/decode CPU overhead vs base64
+- **Graceful Degradation**: Upload tries object storage first, automatically falls back to database bytea on failure
+- **Seamless Downloads**: Download endpoint serves from either object storage (signed URLs) or database (raw binary) transparently
+- **Manual SQL Migration**: Used ALTER TABLE to convert text columns to bytea type
+- **Testing**: Confirmed binary storage working (cv=9286, cl=8600, enh=8023 bytes in bytea columns)
+- **Status**: Production-ready database fallback ensures documents always downloadable even when object storage unavailable
+
+### ✅ User-Specific CV Preferences System (COMPLETE - Previous Session)
 - **Database**: Added `cvPreferences` JSONB field to candidates table for storing user-specific configuration
 - **Backend**: getCvConfig() loads preferences from database; loaded once per run and passed through entire AI pipeline
 - **API Endpoints**: GET/PUT /api/candidates/:id/cv-preferences with ownership validation and Zod schema sanitization
