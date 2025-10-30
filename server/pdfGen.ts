@@ -295,13 +295,17 @@ export class PDFGenerationService {
   
   <div class="section">
     <div class="section-title">Key Skills</div>
-    <div class="prose-paragraph">${cv.key_skills}</div>
+    <ul class="achievements">
+      ${Array.isArray(cv.key_skills) 
+        ? cv.key_skills.map(skill => `<li class="achievement">${skill}</li>`).join("") 
+        : `<li class="achievement">${cv.key_skills}</li>`}
+    </ul>
   </div>
   
   ${cv.technical_skills ? `
   <div class="section">
     <div class="section-title">Technical Skills</div>
-    <div class="prose-paragraph">${cv.technical_skills}</div>
+    <div class="prose-paragraph">${Array.isArray(cv.technical_skills) ? cv.technical_skills.join(" | ") : cv.technical_skills}</div>
   </div>
   ` : ""}
   
