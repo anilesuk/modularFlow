@@ -51,6 +51,16 @@ CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and c
 - **Clear Error Messages**: Specific errors indicating missing career history
 - **Status**: Tested with production-like data
 
+### ✅ Configurable CV Generation System (COMPLETE - Current Session)
+- **Configuration File**: Created `server/cvConfig.ts` with all word count limits for CV sections
+- **Key Skills Format Change**: Changed from array (8-16 items) to prose paragraph (60-80 words)
+- **Technical Skills Format Change**: Changed from pipe-separated string to prose paragraph (60-100 words)
+- **Schema Updates**: Updated Zod schemas with word count validation for key_skills and technical_skills
+- **AI Prompts Updated**: All prompts now reflect new prose format with explicit word count requirements
+- **Runtime Validation**: Added validation for key_skills (60-80 words) and technical_skills (60-100 words)
+- **Document Generation**: Updated docGen.ts to render prose format correctly
+- **Future Enhancement**: Config system allows per-user customization of word count limits
+
 ### ✅ Hardcoded Date Removal from AI Prompts (COMPLETE - Current Session)
 - **Issue**: System prompts contained hardcoded dates (2015-2023, 2007-2014, etc.) that could bias AI to use those specific dates
 - **Solution**: Replaced all specific dates with YYYY placeholders

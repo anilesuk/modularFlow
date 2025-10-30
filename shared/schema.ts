@@ -295,8 +295,24 @@ export const cvDocumentSchema = z.object({
       message: "Profile summary must be between 95 and 125 words",
     }
   ),
-  key_skills: z.array(z.string()).min(8).max(16),
-  technical_skills: z.string(),
+  key_skills: z.string().min(1).refine(
+    (val) => {
+      const wordCount = val.trim().split(/\s+/).length;
+      return wordCount >= 60 && wordCount <= 80;
+    },
+    {
+      message: "Key skills must be between 60 and 80 words",
+    }
+  ),
+  technical_skills: z.string().min(1).refine(
+    (val) => {
+      const wordCount = val.trim().split(/\s+/).length;
+      return wordCount >= 60 && wordCount <= 100;
+    },
+    {
+      message: "Technical skills must be between 60 and 100 words",
+    }
+  ),
   experience: z.array(z.object({
     employer: z.string(),
     location: z.string().optional(),

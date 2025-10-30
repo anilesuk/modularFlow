@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import type { JobPostingPayload, CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange, JdSpec, EvaluationCriteria } from "@shared/schema";
 import { cvDocumentSchema, coverLetterSchema, scorecardSchema, recommendationSchema, traceChangeSchema, jdSpecSchema, evaluationCriteriaSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import { getCvConfig, getWordCountRange } from "./cvConfig";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 const openai = new OpenAI({
@@ -13,19 +14,10 @@ const openai = new OpenAI({
  * Auto-repair common validation failures in AI output
  */
 function autoRepairAIOutput(result: any): any {
+  const config = getCvConfig();
+  
   // Handle both nested (result.cv) and flat CV objects
   const cv = result.cv || result;
-  
-  // Repair key_skills length: trim to 16 if exceeded
-  if (cv.key_skills && Array.isArray(cv.key_skills)) {
-    if (cv.key_skills.length > 16) {
-      console.log(`Auto-repair: Trimming key_skills from ${cv.key_skills.length} to 16`);
-      cv.key_skills = cv.key_skills.slice(0, 16);
-    }
-    if (cv.key_skills.length < 8) {
-      console.log(`Auto-repair: key_skills has only ${cv.key_skills.length} items (minimum 8)`);
-    }
-  }
   
   // Auto-expand profile_summary if close to minimum (85-94 words)
   if (cv.profile_summary && typeof cv.profile_summary === 'string') {
@@ -465,9 +457,9 @@ NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
-- key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
+- key_skills: 60-80 WORDS prose paragraph (COUNT WORDS, not items!).
+- technical_skills: 60-100 WORDS prose paragraph (COUNT WORDS, not items!).
 - Quantify only where supported by the candidate profile (no invented numbers).
-- Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
 GROUNDING & ALIGNMENT (MANDATORY)
 - Every achievement MUST include a "grounding" object with "source_snippet" taken verbatim from the candidate profile.
@@ -479,7 +471,9 @@ GROUNDING & ALIGNMENT (MANDATORY)
   Each item maps an evaluation criterion to which CV sections address it and how strongly.
 
 VALIDATE BEFORE RETURN
-- profile_summary 95–125 WORDS (count words!); key_skills length 8–16.
+- profile_summary 95–125 WORDS (count words!)
+- key_skills 60–80 WORDS (count words!)
+- technical_skills 60–100 WORDS (count words!)
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -508,8 +502,8 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
   "profile_summary": "100-125 word summary (count words carefully)",
-  "key_skills": ["Skill 1", "Skill 2", ...8-16 items],
-  "technical_skills": "Tool1 | Tool2 | Tool3",
+  "key_skills": "60-80 word prose paragraph describing core competencies and expertise areas",
+  "technical_skills": "60-100 word prose paragraph describing technical tools, platforms, and technologies",
   "experience": [
     {
       "employer": "Most Recent Company Name from Profile",
@@ -566,7 +560,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills has 8-16 items.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is 60-80 WORDS, technical_skills is 60-100 WORDS.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -605,9 +599,21 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
       }
       
       // Runtime validation: Enforce 95-125 word count for profile_summary
-      const wordCount = cv.profile_summary.trim().split(/\s+/).length;
-      if (wordCount < 95 || wordCount > 125) {
-        throw new Error(`Profile summary has ${wordCount} words, must be 95-125 words`);
+      const profileWordCount = cv.profile_summary.trim().split(/\s+/).length;
+      if (profileWordCount < 95 || profileWordCount > 125) {
+        throw new Error(`Profile summary has ${profileWordCount} words, must be 95-125 words`);
+      }
+      
+      // Runtime validation: Enforce 60-80 word count for key_skills
+      const keySkillsWordCount = cv.key_skills.trim().split(/\s+/).length;
+      if (keySkillsWordCount < 60 || keySkillsWordCount > 80) {
+        throw new Error(`Key skills has ${keySkillsWordCount} words, must be 60-80 words`);
+      }
+      
+      // Runtime validation: Enforce 60-100 word count for technical_skills
+      const techSkillsWordCount = cv.technical_skills.trim().split(/\s+/).length;
+      if (techSkillsWordCount < 60 || techSkillsWordCount > 100) {
+        throw new Error(`Technical skills has ${techSkillsWordCount} words, must be 60-100 words`);
       }
       
       // Runtime validation: Check experience count matches candidate profile analysis
@@ -696,7 +702,7 @@ CANDIDATE CV SUMMARY:
 Name: ${cv.header.full_name}
 Headline: ${cv.headline}
 Profile: ${cv.profile_summary}
-Key skills: ${cv.key_skills.slice(0, 8).join(', ')}
+Key skills: ${cv.key_skills}
 Recent role: ${cv.experience[0]?.title} at ${cv.experience[0]?.employer}
 
 REQUIRED JSON STRUCTURE:
@@ -847,7 +853,7 @@ ${criteriaDetails}
 CV SUMMARY:
 Headline: ${cv.headline}
 Profile: ${cv.profile_summary}
-Key skills: ${cv.key_skills.join(', ')}
+Key skills: ${cv.key_skills}
 Technical: ${cv.technical_skills}
 Recent achievements: ${cv.experience[0]?.achievements.slice(0, 3).map(a => a.bullet).join('; ')}
 
@@ -1066,9 +1072,9 @@ NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
-- key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
+- key_skills: 60-80 WORDS prose paragraph (COUNT WORDS, not items!).
+- technical_skills: 60-100 WORDS prose paragraph (COUNT WORDS, not items!).
 - Quantify only where supported by the candidate profile (no invented numbers).
-- Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
 GROUNDING & ALIGNMENT (MANDATORY)
 - Every achievement MUST include a "grounding" object with "source_snippet" taken verbatim from the candidate profile.
@@ -1080,7 +1086,9 @@ GROUNDING & ALIGNMENT (MANDATORY)
   Each item maps an evaluation criterion to which CV sections address it and how strongly.
 
 VALIDATE BEFORE RETURN
-- profile_summary 95–125 WORDS (count words!); key_skills length 8–16.
+- profile_summary 95–125 WORDS (count words!)
+- key_skills 60–80 WORDS (count words!)
+- technical_skills 60–100 WORDS (count words!)
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -1109,8 +1117,8 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
   "profile_summary": "100-125 word summary (count words carefully)",
-  "key_skills": ["Skill 1", "Skill 2", ...8-16 items],
-  "technical_skills": "Tool1 | Tool2 | Tool3",
+  "key_skills": "60-80 word prose paragraph describing core competencies and expertise areas",
+  "technical_skills": "60-100 word prose paragraph describing technical tools, platforms, and technologies",
   "experience": [
     {
       "employer": "Most Recent Company Name from Profile",
@@ -1167,7 +1175,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills has 8-16 items.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is 60-80 WORDS, technical_skills is 60-100 WORDS.`;
 
     const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria);
     return { cv, prompts: { system: systemPrompt, user: userPrompt } };
@@ -1207,7 +1215,7 @@ CANDIDATE CV SUMMARY:
 Name: ${cv.header.full_name}
 Headline: ${cv.headline}
 Profile: ${cv.profile_summary}
-Key skills: ${cv.key_skills.slice(0, 8).join(', ')}
+Key skills: ${cv.key_skills}
 Recent role: ${cv.experience[0]?.title} at ${cv.experience[0]?.employer}
 
 REQUIRED JSON STRUCTURE:
@@ -1290,7 +1298,7 @@ Must-have: ${jdSpec.must_have.join(', ')}
 CV SUMMARY:
 Name: ${cv.header.full_name}
 Headline: ${cv.headline}
-Key Skills: ${cv.key_skills.join(', ')}
+Key Skills: ${cv.key_skills}
 Recent Experience: ${cv.experience[0]?.title} at ${cv.experience[0]?.employer} (${cv.experience[0]?.dates.from_year}-${cv.experience[0]?.dates.to_year || 'Present'})
 
 REQUIRED JSON STRUCTURE:

@@ -62,7 +62,7 @@ export class DocumentGenerationService {
               heading: HeadingLevel.HEADING_2,
             }),
             new Paragraph({
-              text: cv.key_skills.join(" • "),
+              text: cv.key_skills,
             }),
             new Paragraph({ text: "" }),
 
