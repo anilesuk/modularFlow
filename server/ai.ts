@@ -227,18 +227,35 @@ RULES:
   ): Promise<CvDocument> {
     const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
 
-🚨🚨🚨 CRITICAL REQUIREMENT - READ FIRST 🚨🚨🚨
-EVERY SINGLE ACHIEVEMENT **MUST** INCLUDE A GROUNDING OBJECT WITH source_snippet.
-NO EXCEPTIONS. THE SYSTEM WILL REJECT THE ENTIRE CV IF EVEN ONE ACHIEVEMENT LACKS GROUNDING.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨🚨🚨 CRITICAL - GROUNDING IS MANDATORY - THIS WILL BE VALIDATED 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Example achievement with required grounding:
+EVERY achievement MUST have a "grounding" object with "source_snippet".
+Your response will be REJECTED if even ONE achievement lacks grounding.
+
+CORRECT FORMAT (copy this exactly):
 {
   "bullet": "Led migration of legacy system to microservices architecture reducing latency by 40%.",
   "grounding": {
     "source_snippet": "Led migration of legacy system to microservices",
     "confidence": "high"
-  }
+  },
+  "situation": "...",
+  "obstacle": "...",
+  "action": "...",
+  "result": "..."
 }
+
+WRONG FORMAT (will be REJECTED):
+{
+  "bullet": "...",
+  "situation": "...",
+  "obstacle": "...",
+  "action": "...",
+  "result": "..."
+}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
@@ -301,6 +318,10 @@ REQUIRED JSON STRUCTURE:
       "achievements": [
         {
           "bullet": "Action verb + SOAR fused into one bullet ending with period.",
+          "grounding": {
+            "source_snippet": "Copy exact text from candidate profile here",
+            "confidence": "high"
+          },
           "situation": "Context",
           "obstacle": "Challenge",
           "action": "What was done",
