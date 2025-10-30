@@ -390,14 +390,14 @@ async function processJobApplication(
     // STAGE 2: Generate draft (Pass 1)
     await storage.updateRunStatus(runId, "DRAFT_PASS1");
     
-    // For very long CVs (>15,000 chars), intelligently condense to avoid overwhelming the AI
-    // This prevents the combined prompt (CV + JD + instructions) from exceeding AI context limits
+    // For very long CVs (>50,000 chars), intelligently condense to avoid overwhelming the AI
+    // Modern AI models (gpt-4o-mini) can handle 128k tokens (~512k chars), so only condense truly massive CVs
     let cvContent = candidate.longformCv;
-    if (cvContent.length > 15000) {
-      // Extract first 8,000 chars (key sections) + last 7,000 chars (education/recent roles)
-      const firstPart = cvContent.substring(0, 8000);
-      const lastPart = cvContent.substring(cvContent.length - 7000);
-      cvContent = `${firstPart}\n\n...[CV CONDENSED FOR LENGTH - Original ${cvContent.length} characters, condensed to 15,000 for AI processing]...\n\n${lastPart}`;
+    if (cvContent.length > 50000) {
+      // Extract first 25,000 chars (key sections) + last 25,000 chars (education/recent roles)
+      const firstPart = cvContent.substring(0, 25000);
+      const lastPart = cvContent.substring(cvContent.length - 25000);
+      cvContent = `${firstPart}\n\n...[CV CONDENSED FOR LENGTH - Original ${cvContent.length} characters, condensed to 50,000 for AI processing]...\n\n${lastPart}`;
       console.log(`CV condensed from ${candidate.longformCv.length} to ${cvContent.length} characters`);
     }
     
