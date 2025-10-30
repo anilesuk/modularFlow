@@ -36,9 +36,9 @@ export default function Results() {
     
     // Map document types to filenames
     const filenameMap = {
-      "cv": "Tailored-CV.docx",
-      "cover-letter": "Cover-Letter.docx",
-      "added-points": "Enhancement-Notes.docx",
+      "cv": "Tailored-CV.pdf",
+      "cover-letter": "Cover-Letter.pdf",
+      "added-points": "Enhancement-Notes.pdf",
     };
     
     const filename = filenameMap[documentType];
@@ -286,7 +286,7 @@ export default function Results() {
                   disabled={!hasArtifacts || downloading === "added-points"}
                   data-testid="button-download-enhancements"
                 >
-                  {downloading === "added-points" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
+                  {downloading === "added-points" ? "Downloading..." : hasArtifacts ? "Download PDF" : "Not Available"}
                 </Button>
               </div>
               
@@ -318,7 +318,7 @@ export default function Results() {
                   disabled={!hasArtifacts || downloading === "cv"}
                   data-testid="button-download-cv"
                 >
-                  {downloading === "cv" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
+                  {downloading === "cv" ? "Downloading..." : hasArtifacts ? "Download PDF" : "Not Available"}
                 </Button>
               </div>
               
@@ -448,7 +448,7 @@ export default function Results() {
                   disabled={!hasArtifacts || downloading === "cover-letter"}
                   data-testid="button-download-cover-letter"
                 >
-                  {downloading === "cover-letter" ? "Downloading..." : hasArtifacts ? "Download .docx" : "Not Available"}
+                  {downloading === "cover-letter" ? "Downloading..." : hasArtifacts ? "Download PDF" : "Not Available"}
                 </Button>
               </div>
               

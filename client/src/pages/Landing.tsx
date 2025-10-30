@@ -150,7 +150,7 @@ export default function Landing() {
               <div className="flex-1">
                 <h3 className="font-semibold mb-2">Download Documents</h3>
                 <p className="text-sm text-muted-foreground">
-                  Receive professional .docx files: tailored CV, cover letter, and enhancement tracking document—ready to submit.
+                  Receive professional PDF files: tailored CV, cover letter, and enhancement tracking document—ready to submit.
                 </p>
               </div>
             </div>

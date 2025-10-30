@@ -331,7 +331,7 @@ export default function SubmitJob() {
             <div className="flex items-start space-x-3">
               <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
               <div className="text-sm">
-                <span className="font-medium">Documents:</span> Generate professional .docx files ready to submit
+                <span className="font-medium">Documents:</span> Generate professional PDF files ready to submit
               </div>
             </div>
           </div>

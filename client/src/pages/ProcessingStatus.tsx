@@ -54,7 +54,7 @@ export default function ProcessingStatus() {
     { id: "DRAFT_PASS1", label: "Generating Draft", description: "Creating initial CV and cover letter with AI" },
     { id: "OPTIMIZING_PASS2", label: "Optimizing", description: "Applying recommendations and refining documents" },
     { id: "VALIDATED", label: "Validating", description: "Ensuring ATS compliance and formatting standards" },
-    { id: "RENDERING", label: "Rendering", description: "Generating professional .docx documents" },
+    { id: "RENDERING", label: "Rendering", description: "Generating professional PDF documents" },
     { id: "COMPLETED", label: "Completed", description: "All documents ready for download" },
   ];
 

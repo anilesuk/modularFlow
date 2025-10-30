@@ -580,7 +580,7 @@ ${cvContent}
     // STAGE 4: Validate (ATS compliance check - already done in AI prompts)
     await storage.updateRunStatus(runId, "VALIDATED");
 
-    // STAGE 5: Render .docx documents (non-blocking - preserve intermediate state if this fails)
+    // STAGE 5: Render PDF documents (non-blocking - preserve intermediate state if this fails)
     try {
       await storage.updateRunStatus(runId, "RENDERING");
       

@@ -6,7 +6,7 @@
 export class ObjectAclService {
   /**
    * Verify if a user has access to a specific storage path
-   * Storage paths follow: .private/{userId}/{runId}/{documentType}_{timestamp}.docx
+   * Storage paths follow: .private/{userId}/{runId}/{documentType}_{timestamp}.pdf
    */
   canAccess(userId: string, storagePath: string): boolean {
     // Extract userId from path
@@ -32,7 +32,7 @@ export class ObjectAclService {
    * Accepts any non-empty user ID (Replit sub can be various formats like "user-123abc")
    */
   isValidPath(storagePath: string): boolean {
-    const pathPattern = /^\.private\/[^/]+\/[^/]+\/.+\.docx$/;
+    const pathPattern = /^\.private\/[^/]+\/[^/]+\/.+\.pdf$/;
     return pathPattern.test(storagePath);
   }
 }
