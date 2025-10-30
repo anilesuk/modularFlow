@@ -553,36 +553,58 @@ ${cvContent}
         docGen.generateEnhancementReportDocx(optimizedResult.addedPoints),
       ]);
 
-      // Upload to object storage
-      const cvPath = objectStorage.generateStoragePath(userId, runId, "cv");
-      const coverLetterPath = objectStorage.generateStoragePath(userId, runId, "cover_letter");
-      const enhancementPath = objectStorage.generateStoragePath(userId, runId, "enhancements");
+      // Try object storage first, fall back to database storage if it fails
+      let useObjectStorage = true;
+      let cvPath: string | undefined;
+      let coverLetterPath: string | undefined;
+      let enhancementPath: string | undefined;
+      
+      try {
+        cvPath = objectStorage.generateStoragePath(userId, runId, "cv");
+        coverLetterPath = objectStorage.generateStoragePath(userId, runId, "cover_letter");
+        enhancementPath = objectStorage.generateStoragePath(userId, runId, "enhancements");
 
-      await Promise.all([
-        objectStorage.upload({
-          key: cvPath,
-          body: cvBuffer,
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }),
-        objectStorage.upload({
-          key: coverLetterPath,
-          body: coverLetterBuffer,
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }),
-        objectStorage.upload({
-          key: enhancementPath,
-          body: enhancementBuffer,
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }),
-      ]);
+        await Promise.all([
+          objectStorage.upload({
+            key: cvPath,
+            body: cvBuffer,
+            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          }),
+          objectStorage.upload({
+            key: coverLetterPath,
+            body: coverLetterBuffer,
+            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          }),
+          objectStorage.upload({
+            key: enhancementPath,
+            body: enhancementBuffer,
+            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          }),
+        ]);
+        console.log(`Documents uploaded to object storage for run ${runId}`);
+      } catch (uploadError: any) {
+        console.warn(`Object storage upload failed for run ${runId}, falling back to database storage:`, uploadError.message);
+        useObjectStorage = false;
+      }
 
-      // Create single artifact record with all three document paths
-      await storage.createArtifact({
-        runId,
-        cvPath,
-        coverLetterPath,
-        addedPointsPath: enhancementPath,
-      });
+      // Create artifact record with either object storage paths OR database binary data
+      if (useObjectStorage) {
+        await storage.createArtifact({
+          runId,
+          cvPath,
+          coverLetterPath,
+          addedPointsPath: enhancementPath,
+        });
+      } else {
+        // Store as base64-encoded binary in database
+        await storage.createArtifact({
+          runId,
+          cvBinary: cvBuffer.toString('base64'),
+          coverLetterBinary: coverLetterBuffer.toString('base64'),
+          enhancementBinary: enhancementBuffer.toString('base64'),
+        });
+        console.log(`Documents stored in database (base64) for run ${runId}`);
+      }
     } catch (renderError: any) {
       // Log the error but don't fail the entire run - user can still see draft/final data
       console.error(`Document rendering/upload failed for run ${runId}, but preserving intermediate results:`, renderError);
