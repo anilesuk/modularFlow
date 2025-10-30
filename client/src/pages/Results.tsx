@@ -363,14 +363,26 @@ export default function Results() {
                         {/* Key Skills */}
                         <div>
                           <h4 className="text-lg font-semibold mb-2">Key Skills</h4>
-                          <p className="text-sm">{cv.key_skills}</p>
+                          {Array.isArray(cv.key_skills) ? (
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                              {cv.key_skills.map((skill: string, idx: number) => (
+                                <li key={idx}>{skill}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm">{cv.key_skills}</p>
+                          )}
                         </div>
 
                         {/* Technical Skills */}
                         {cv.technical_skills && (
                           <div>
                             <h4 className="text-lg font-semibold mb-2">Technical Skills</h4>
-                            <p className="text-sm">{cv.technical_skills}</p>
+                            {Array.isArray(cv.technical_skills) ? (
+                              <p className="text-sm">{cv.technical_skills.join(" | ")}</p>
+                            ) : (
+                              <p className="text-sm">{cv.technical_skills}</p>
+                            )}
                           </div>
                         )}
 
