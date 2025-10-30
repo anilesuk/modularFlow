@@ -5,6 +5,10 @@
  * Users can modify these values to customize the output format.
  */
 
+import { db } from "@db";
+import { candidates } from "@shared/schema";
+import { eq } from "drizzle-orm";
+
 export interface CvSectionConfig {
   minWords: number;
   maxWords: number;
@@ -80,13 +84,42 @@ export const defaultCvConfig: CvGenerationConfig = {
 };
 
 /**
- * Get the current CV configuration
- * In the future, this could load from environment variables or a database
+ * Get the CV configuration for a specific candidate
+ * Loads user preferences from database if available, otherwise returns defaults
  */
-export function getCvConfig(): CvGenerationConfig {
-  // For now, return the default config
-  // Future enhancement: load from environment or database per user
-  return defaultCvConfig;
+export async function getCvConfig(candidateId?: string): Promise<CvGenerationConfig> {
+  // If no candidateId provided, return defaults
+  if (!candidateId) {
+    return defaultCvConfig;
+  }
+
+  try {
+    // Load candidate preferences from database
+    const [candidate] = await db
+      .select({ cvPreferences: candidates.cvPreferences })
+      .from(candidates)
+      .where(eq(candidates.id, candidateId))
+      .limit(1);
+
+    // If candidate doesn't exist or has no preferences, return defaults
+    if (!candidate?.cvPreferences) {
+      return defaultCvConfig;
+    }
+
+    // Merge user preferences with defaults (in case user has partial preferences)
+    const userPrefs = candidate.cvPreferences as Partial<CvGenerationConfig>;
+    return {
+      profileSummary: userPrefs.profileSummary || defaultCvConfig.profileSummary,
+      keySkills: userPrefs.keySkills || defaultCvConfig.keySkills,
+      technicalSkills: userPrefs.technicalSkills || defaultCvConfig.technicalSkills,
+      experience: userPrefs.experience || defaultCvConfig.experience,
+      evaluationCriteria: userPrefs.evaluationCriteria || defaultCvConfig.evaluationCriteria,
+    };
+  } catch (error) {
+    console.error('Error loading CV config from database:', error);
+    // Fall back to defaults on error
+    return defaultCvConfig;
+  }
 }
 
 /**
