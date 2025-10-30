@@ -27,8 +27,10 @@ export class PDFGenerationService {
       pdfDoc.setAuthor(metadata.author);
     }
     
-    // Save and return the sanitized PDF
-    const sanitizedBytes = await pdfDoc.save();
+    // Save with compression to reduce file size and simplify structure
+    const sanitizedBytes = await pdfDoc.save({
+      useObjectStreams: false,  // Disable object streams (reduces complexity)
+    });
     return Buffer.from(sanitizedBytes);
   }
   /**
@@ -94,7 +96,7 @@ export class PDFGenerationService {
       await page.setContent(html, { waitUntil: "networkidle0" });
       await page.emulateMediaType("print");
       
-      // Generate PDF with all anti-AV options enabled
+      // Generate PDF with clean options (pdf-lib will handle compression & cleanup)
       let pdfBuffer = await page.pdf({
         format: "A4",
         margin: options.margins || {
@@ -106,9 +108,7 @@ export class PDFGenerationService {
         printBackground: true,
         preferCSSPageSize: true,
         displayHeaderFooter: false,
-        tagged: false,       // Disable PDF tagging to simplify structure
-        outline: false,      // Disable document outline
-        scale: 1,            // Explicit scale factor
+        scale: 1,
       });
 
       // Sanitize metadata to remove HeadlessChrome signatures
