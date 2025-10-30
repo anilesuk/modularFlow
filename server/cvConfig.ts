@@ -5,7 +5,7 @@
  * Users can modify these values to customize the output format.
  */
 
-import { db } from "@db";
+import { db } from "./db";
 import { candidates } from "@shared/schema";
 import { eq } from "drizzle-orm";
 

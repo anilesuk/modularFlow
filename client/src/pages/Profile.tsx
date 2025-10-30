@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { User, Plus, Edit, Trash2 } from "lucide-react";
+import { User, Plus, Edit, Trash2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,12 +31,15 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertCandidateSchema, type Candidate, type InsertCandidate } from "@shared/schema";
 import { z } from "zod";
+import { CvSettingsDialog } from "@/components/CvSettingsDialog";
 
 export default function Profile() {
   const { toast } = useToast();
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
   const [deletingCandidate, setDeletingCandidate] = useState<Candidate | null>(null);
   const [showDialog, setShowDialog] = useState(false);
+  const [settingsCandidate, setSettingsCandidate] = useState<Candidate | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const { data: candidates = [], isLoading } = useQuery<Candidate[]>({
     queryKey: ["/api/candidates"],
@@ -232,6 +235,17 @@ export default function Profile() {
                     <Button
                       size="sm"
                       variant="outline"
+                      onClick={() => {
+                        setSettingsCandidate(candidate);
+                        setShowSettings(true);
+                      }}
+                      data-testid={`button-settings-${candidate.id}`}
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={() => handleEdit(candidate)}
                       data-testid={`button-edit-${candidate.id}`}
                     >
@@ -410,6 +424,13 @@ export default function Profile() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* CV Generation Settings */}
+        <CvSettingsDialog
+          candidate={settingsCandidate}
+          open={showSettings}
+          onOpenChange={setShowSettings}
+        />
       </div>
     </div>
   );
