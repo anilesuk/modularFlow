@@ -45,25 +45,41 @@ export default function Results() {
     
     setDownloading(documentType);
     try {
-      // Get signed download URL from backend
+      // Get download from backend (either signed URL or direct binary)
       const response = await fetch(`/api/artifacts/${run.id}/download?type=${documentType}`);
       if (!response.ok) {
-        throw new Error("Failed to get download URL");
+        throw new Error("Failed to get download");
       }
       
-      const { url } = await response.json();
+      const contentType = response.headers.get('Content-Type');
       
-      // Download using signed URL
-      const fileResponse = await fetch(url);
-      const blob = await fileResponse.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
+      if (contentType?.includes('application/json')) {
+        // Object storage flow: response contains signed URL
+        const { url } = await response.json();
+        
+        // Download using signed URL
+        const fileResponse = await fetch(url);
+        const blob = await fileResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      } else {
+        // Database storage flow: response is the file itself
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+      }
     } catch (error) {
       console.error("Download failed:", error);
     } finally {

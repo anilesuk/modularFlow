@@ -346,30 +346,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Select the appropriate storage path based on document type
-      let storagePath: string;
-      switch (documentType) {
-        case "cv":
-          storagePath = artifact.cvPath;
-          break;
-        case "cover-letter":
-          storagePath = artifact.coverLetterPath;
-          break;
-        case "added-points":
-          storagePath = artifact.addedPointsPath;
-          break;
-        default:
-          return res.status(400).json({ error: "Invalid document type" });
-      }
+      // Check if using object storage (paths) or database storage (binary)
+      const useObjectStorage = !!artifact.cvPath;
 
-      // Verify ACL access
-      if (!objectAcl.canAccess(req.user.claims.sub, storagePath)) {
-        return res.status(403).json({ error: "Access denied" });
-      }
+      if (useObjectStorage) {
+        // Object storage flow - generate signed URL
+        let storagePath: string;
+        switch (documentType) {
+          case "cv":
+            storagePath = artifact.cvPath!;
+            break;
+          case "cover-letter":
+            storagePath = artifact.coverLetterPath!;
+            break;
+          case "added-points":
+            storagePath = artifact.addedPointsPath!;
+            break;
+          default:
+            return res.status(400).json({ error: "Invalid document type" });
+        }
 
-      // Generate signed URL
-      const downloadUrl = await objectStorage.getSignedDownloadUrl(storagePath, 3600);
-      res.json({ url: downloadUrl });
+        // Verify ACL access
+        if (!objectAcl.canAccess(req.user.claims.sub, storagePath)) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+
+        // Generate signed URL
+        const downloadUrl = await objectStorage.getSignedDownloadUrl(storagePath, 3600);
+        res.json({ url: downloadUrl });
+      } else {
+        // Database storage flow - serve binary data directly
+        let base64Data: string | null;
+        let filename: string;
+        
+        switch (documentType) {
+          case "cv":
+            base64Data = artifact.cvBinary;
+            filename = "CV.docx";
+            break;
+          case "cover-letter":
+            base64Data = artifact.coverLetterBinary;
+            filename = "Cover_Letter.docx";
+            break;
+          case "added-points":
+            base64Data = artifact.enhancementBinary;
+            filename = "Enhancement_Report.docx";
+            break;
+          default:
+            return res.status(400).json({ error: "Invalid document type" });
+        }
+
+        if (!base64Data) {
+          return res.status(404).json({ error: "Document not found in database storage" });
+        }
+
+        // Decode base64 and serve as binary
+        const buffer = Buffer.from(base64Data, 'base64');
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', buffer.length);
+        res.send(buffer);
+      }
     } catch (error) {
       console.error("Error generating download URL:", error);
       res.status(500).json({ error: "Failed to generate download URL" });
