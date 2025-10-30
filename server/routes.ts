@@ -570,6 +570,32 @@ ${cvContent}
       cvConfig
     );
 
+    // Validate that optimization improved (or maintained) the score
+    const phase1Score = draftResult.scorecard.overall_score_1_to_10;
+    const phase2Score = optimizedResult.scorecardFinal.overall_score_1_to_10;
+    const scoreChange = phase2Score - phase1Score;
+    
+    if (scoreChange < 0) {
+      console.warn(`⚠️  WARNING: Phase 2 score DECREASED by ${Math.abs(scoreChange).toFixed(2)} points!`);
+      console.warn(`   Phase 1: ${phase1Score}/10 → Phase 2: ${phase2Score}/10`);
+      console.warn(`   Analyzing which criteria decreased:`);
+      
+      // Compare individual criteria scores
+      draftResult.scorecard.scorecard.forEach((phase1Item) => {
+        const phase2Item = optimizedResult.scorecardFinal.scorecard.find(
+          (item) => item.criterion_ref === phase1Item.criterion_ref || item.area === phase1Item.area
+        );
+        if (phase2Item && phase2Item.score_1_to_10 < phase1Item.score_1_to_10) {
+          const decrease = phase1Item.score_1_to_10 - phase2Item.score_1_to_10;
+          console.warn(`   - ${phase1Item.area}: ${phase1Item.score_1_to_10} → ${phase2Item.score_1_to_10} (${decrease} point decrease)`);
+        }
+      });
+    } else if (scoreChange > 0) {
+      console.log(`✅ Phase 2 optimization improved score by +${scoreChange.toFixed(2)} points (${phase1Score} → ${phase2Score})`);
+    } else {
+      console.log(`➡️  Phase 2 maintained score at ${phase2Score}/10`);
+    }
+
     await storage.createFinal({
       runId,
       cvJsonb: optimizedResult.cvFinal as any,
