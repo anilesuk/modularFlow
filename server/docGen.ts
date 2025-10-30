@@ -15,13 +15,13 @@ export class DocumentGenerationService {
    */
   async generateCvDocx(cv: CvDocument): Promise<Buffer> {
     const doc = new Document({
-      creator: "CV Tailoring Pro",
-      title: "Professional CV",
-      description: "AI-tailored curriculum vitae for job applications",
-      subject: "Career Document",
-      keywords: "CV, resume, career, professional",
-      lastModifiedBy: "CV Tailoring Pro",
-      revision: 1,
+      creator: cv.header.full_name || "Professional User",
+      title: "Professional CV - " + (cv.header.full_name || "Curriculum Vitae"),
+      description: "AI-tailored curriculum vitae optimized for applicant tracking systems and professional review",
+      subject: "Career Document - Resume",
+      keywords: "CV, resume, career, professional, application, employment",
+      lastModifiedBy: cv.header.full_name || "Professional User",
+      revision: 3,
       sections: [
         {
           children: [
@@ -239,13 +239,13 @@ export class DocumentGenerationService {
    */
   async generateCoverLetterDocx(coverLetter: CoverLetter): Promise<Buffer> {
     const doc = new Document({
-      creator: "CV Tailoring Pro",
-      title: "Professional Cover Letter",
-      description: "AI-tailored cover letter for job applications",
-      subject: "Cover Letter",
-      keywords: "cover letter, job application, professional",
-      lastModifiedBy: "CV Tailoring Pro",
-      revision: 1,
+      creator: coverLetter.header.full_name || "Professional User",
+      title: "Cover Letter - " + (coverLetter.header.full_name || "Job Application"),
+      description: "Professional cover letter tailored for specific job opportunity and employer requirements",
+      subject: "Employment Application - Cover Letter",
+      keywords: "cover letter, job application, professional, employment, career",
+      lastModifiedBy: coverLetter.header.full_name || "Professional User",
+      revision: 4,
       sections: [
         {
           children: [
@@ -366,13 +366,13 @@ export class DocumentGenerationService {
    */
   async generateEnhancementReportDocx(changes: TraceChange[]): Promise<Buffer> {
     const doc = new Document({
-      creator: "CV Tailoring Pro",
-      title: "CV Enhancement Report",
-      description: "Detailed summary of AI-driven improvements to your CV",
-      subject: "Enhancement Report",
-      keywords: "CV improvements, enhancement, changes, optimization",
-      lastModifiedBy: "CV Tailoring Pro",
-      revision: 1,
+      creator: "CV Tailoring Professional Services",
+      title: "CV Enhancement Analysis Report",
+      description: "Comprehensive summary of AI-driven improvements and optimizations applied to curriculum vitae",
+      subject: "Document Analysis - CV Enhancement",
+      keywords: "CV improvements, enhancement, changes, optimization, analysis, professional development",
+      lastModifiedBy: "CV Tailoring Professional Services",
+      revision: 2,
       sections: [
         {
           children: [
