@@ -476,6 +476,22 @@ CRITICAL:
       delete result.paragraphs.grounding_refs;
     }
     
+    // Auto-repair: Fix grounding_refs if they're strings instead of objects
+    if (Array.isArray(result.grounding_refs)) {
+      const validRefs = result.grounding_refs.filter((ref: any) => 
+        typeof ref === 'object' && ref.cv_path && ref.excerpt
+      );
+      
+      // If all refs are invalid (strings), remove the field entirely (it's optional)
+      if (validRefs.length === 0) {
+        console.log("Auto-repair: Removing invalid grounding_refs (all strings, expected objects)");
+        delete result.grounding_refs;
+      } else if (validRefs.length !== result.grounding_refs.length) {
+        console.log(`Auto-repair: Filtered grounding_refs from ${result.grounding_refs.length} to ${validRefs.length} valid items`);
+        result.grounding_refs = validRefs;
+      }
+    }
+    
     try {
       return coverLetterSchema.parse(result);
     } catch (error: any) {
