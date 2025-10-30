@@ -149,7 +149,9 @@ GOAL
 1) Extract a comprehensive JD specification from the posting with FULL DETAIL (no condensing).
 2) Derive EXACTLY 7 weighted evaluation criteria that are specific to THIS JD, using concrete phrases/signals from the text. Weights must sum to exactly 100.
 
-RULES
+CRITICAL RULES - READ THE ACTUAL JOB DESCRIPTION
+- You MUST extract the ACTUAL role title, company name, and location from the job description provided
+- DO NOT use placeholder or example values - extract the REAL information from the text
 - Extract EXACTLY 7 criteria (not 4-7, not 6, EXACTLY 7); weights must sum to exactly 100.
 - Criteria must reference concrete JD signals (verbatim phrases/terms).
 - For responsibilities and experience sections: DO NOT CONDENSE - include ALL details from the JD.
@@ -159,26 +161,28 @@ RULES
 
     const userPrompt = `Analyze the following job posting and produce the JSON requested in the system prompt.
 
+IMPORTANT: Extract the ACTUAL role title from this specific job description. Do not use generic examples.
+
 JOB POSTING:
 Company: ${jobPosting.company?.name || "Not specified"}
 Role: ${jobPosting.role.title}
 Location: ${jobPosting.role.location || "Not specified"}
 Description: ${jobPosting.description.clean_text}
 
-OUTPUT SHAPE:
+OUTPUT SHAPE (replace ALL placeholder values with ACTUAL data from the job description above):
 {
   "jdSpec": {
     "company": {
-      "name": "Company Name",
-      "website": "https://company.com",
-      "industry": "Technology",
-      "hq": "London, UK"
+      "name": "[Extract actual company name from JD]",
+      "website": "[Extract or infer from JD]",
+      "industry": "[Extract actual industry from JD]",
+      "hq": "[Extract actual HQ location from JD]"
     },
     "role": {
-      "title": "Senior Data Engineer",
-      "location": "London, UK",
-      "seniority": "Senior",
-      "employment_type": "Full-time"
+      "title": "[MUST be the ACTUAL job title from the description - e.g., if the JD says 'Chief Data Officer', use 'Chief Data Officer']",
+      "location": "[Extract actual location from JD]",
+      "seniority": "[Extract actual seniority level from JD]",
+      "employment_type": "[Extract actual employment type from JD]"
     },
     "qualifications": ["Bachelor's degree in Computer Science", "10+ years experience", "AWS Certification preferred"],
     "responsibilities": ["FULL DETAIL - Extract ALL responsibilities from JD without condensing", "Design and build data pipelines", "Lead team of data engineers", "Collaborate with stakeholders"],
@@ -309,6 +313,9 @@ RULES:
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
     result = await autoRepairAIOutput(result, defaultCvConfig);
+    
+    // Log what was extracted for debugging
+    console.log(`Phase 0 extracted: "${result.jdSpec?.role?.title}" at ${result.jdSpec?.company?.name}`);
     
     try {
       const jdSpec = jdSpecSchema.parse(result.jdSpec);
