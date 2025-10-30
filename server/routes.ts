@@ -141,6 +141,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get CV preferences for a candidate
+  app.get("/api/candidates/:id/cv-preferences", isAuthenticated, async (req, res) => {
+    try {
+      const candidate = await storage.getCandidateById(req.params.id);
+      if (!candidate || candidate.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
+
+      // Import the config utilities
+      const { getCvConfig, defaultCvConfig } = await import("./cvConfig");
+      
+      // Get the config for this candidate (will return user prefs or defaults)
+      const config = await getCvConfig(candidate.id);
+      
+      res.json(config);
+    } catch (error) {
+      console.error("Error fetching CV preferences:", error);
+      res.status(500).json({ error: "Failed to fetch CV preferences" });
+    }
+  });
+
+  // Update CV preferences for a candidate
+  app.put("/api/candidates/:id/cv-preferences", isAuthenticated, async (req, res) => {
+    try {
+      const candidate = await storage.getCandidateById(req.params.id);
+      if (!candidate || candidate.userId !== req.user.claims.sub) {
+        return res.status(404).json({ error: "Candidate not found" });
+      }
+
+      // Validate the incoming preferences structure
+      const preferences = req.body;
+      
+      // Basic validation - ensure required fields exist
+      if (!preferences.profileSummary || !preferences.keySkills || 
+          !preferences.technicalSkills || !preferences.experience || 
+          !preferences.evaluationCriteria) {
+        return res.status(400).json({ error: "Invalid preferences structure" });
+      }
+
+      // Update the candidate's cvPreferences
+      await storage.updateCandidate(candidate.id, {
+        cvPreferences: preferences,
+      });
+
+      await storage.createAuditLog({
+        userId: req.user.claims.sub,
+        action: "CV_PREFERENCES_UPDATED",
+        resourceType: "candidate",
+        resourceId: candidate.id,
+        details: { preferences },
+      });
+
+      res.json({ success: true, preferences });
+    } catch (error) {
+      console.error("Error updating CV preferences:", error);
+      res.status(500).json({ error: "Failed to update CV preferences" });
+    }
+  });
+
   // ===== RUNS (JOB APPLICATIONS) =====
 
   // Get all runs for current user
