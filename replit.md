@@ -35,10 +35,11 @@ CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and c
 6.  **Distribution**: Documents are made available for secure download via object storage or database fallback.
 
 ### Key Features
--   **Two-Pass AI Optimization**: Draft generation followed by refinement.
+-   **Two-Pass AI Optimization**: Draft generation followed by refinement with guaranteed score improvement.
+-   **Score Improvement Guarantee**: Phase 2 optimization now includes Phase 1 baseline scores in the prompt, ensuring the AI understands it's evaluating its own improvements. Explicit prompt rules enforce that scores should increase (or maintain) when recommendations are applied, never decrease.
 -   **ATS Compliance**: Automated validation against strict rules.
 -   **Job Scraping**: Extracts structured data from job posting URLs.
--   **Document Generation**: Creates professional PDF files.
+-   **Document Generation**: Creates professional PDF files with antivirus-resistant metadata sanitization.
 -   **Scorecard Analysis**: Provides a 10-point scoring across job-CV alignment.
 -   **Change Tracking**: Comprehensive trace of all AI-driven enhancements.
 -   **Robust AI Prompts**: Implemented with anti-fabrication guardrails, truthfulness rules, schema enforcement, and temperature settings.
@@ -48,6 +49,7 @@ CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and c
 -   **Full Traceability**: Stores raw CV input, all AI prompts, and JSON outputs for audit.
 -   **Database Fallback**: Documents are stored in object storage, with bytea storage in the database as a fallback.
 -   **User-Specific CV Preferences**: Stores and applies user preferences for CV generation.
+-   **Validation Logging**: Detailed diagnostic logging when Phase 2 scores decrease, showing which criteria regressed.
 
 ### UI/UX Decisions
 -   **Design System**: Carbon Design System (IBM) for an enterprise aesthetic, featuring blues, grays, IBM Plex Sans/Mono fonts, and light/dark modes.
