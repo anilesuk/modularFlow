@@ -72,12 +72,13 @@ export class AIService {
     const systemPrompt = `You are a job description analysis expert. Return ONE valid JSON object only (no prose, no markdown).
 
 GOAL
-1) Extract a strict JD specification from the posting.
-2) Derive 4–7 weighted evaluation criteria that are specific to THIS JD, using concrete phrases/signals from the text. Weights must sum to exactly 100.
+1) Extract a comprehensive JD specification from the posting with FULL DETAIL (no condensing).
+2) Derive EXACTLY 7 weighted evaluation criteria that are specific to THIS JD, using concrete phrases/signals from the text. Weights must sum to exactly 100.
 
 RULES
-- Extract 4–7 criteria; weights must sum to exactly 100.
+- Extract EXACTLY 7 criteria (not 4-7, not 6, EXACTLY 7); weights must sum to exactly 100.
 - Criteria must reference concrete JD signals (verbatim phrases/terms).
+- For responsibilities and experience sections: DO NOT CONDENSE - include ALL details from the JD.
 - Use ONLY the allowed keys in scope_indicators: team_size, budget, regions, stakeholder_levels.
 - Do NOT add unknown or extra fields to any object.
 - Output valid JSON only.`;
@@ -105,9 +106,13 @@ OUTPUT SHAPE:
       "seniority": "Senior",
       "employment_type": "Full-time"
     },
+    "qualifications": ["Bachelor's degree in Computer Science", "10+ years experience", "AWS Certification preferred"],
+    "responsibilities": ["FULL DETAIL - Extract ALL responsibilities from JD without condensing", "Design and build data pipelines", "Lead team of data engineers", "Collaborate with stakeholders"],
+    "experience": ["FULL DETAIL - Extract ALL experience requirements without condensing", "Senior-level data engineering", "Cloud architecture experience"],
+    "success_for_role": ["What success looks like in first 90 days", "Key deliverables and milestones"],
+    "why_this_company": ["Company mission and vision", "Growth opportunities", "Unique selling points"],
     "must_have": ["Required skill 1", "Required skill 2", "Required experience"],
     "nice_to_have": ["Preferred skill 1", "Preferred qualification"],
-    "responsibilities": ["Key responsibility 1", "Key responsibility 2"],
     "skills": ["Skill 1", "Skill 2", "Skill 3"],
     "tools": ["Tool 1", "Tool 2"],
     "domains": ["Domain 1", "Industry 1"],
@@ -122,9 +127,9 @@ OUTPUT SHAPE:
   },
   "evaluationCriteria": [
     {
-      "name": "Technical Skills",
+      "name": "Technical Skills & Expertise",
       "jd_signals": ["Python", "SQL", "Cloud platforms"],
-      "weight_percent": 30,
+      "weight_percent": 25,
       "rubric": {
         "excellent": "Expert level in all required technologies with proven track record",
         "good": "Strong proficiency in most required technologies",
@@ -134,9 +139,9 @@ OUTPUT SHAPE:
       "target_cv_fields": ["technical_skills", "key_skills", "experience"]
     },
     {
-      "name": "Relevant Experience",
+      "name": "Relevant Experience & Seniority",
       "jd_signals": ["Senior role", "10+ years"],
-      "weight_percent": 25,
+      "weight_percent": 20,
       "rubric": {
         "excellent": "Extensive experience in exactly matching role with measurable outcomes",
         "good": "Solid experience in similar role",
@@ -146,9 +151,9 @@ OUTPUT SHAPE:
       "target_cv_fields": ["experience", "headline"]
     },
     {
-      "name": "Leadership & Impact",
+      "name": "Leadership & Team Management",
       "jd_signals": ["team leadership", "strategic planning"],
-      "weight_percent": 25,
+      "weight_percent": 15,
       "rubric": {
         "excellent": "Demonstrated senior leadership with quantified business impact",
         "good": "Evidence of team leadership and results",
@@ -158,9 +163,9 @@ OUTPUT SHAPE:
       "target_cv_fields": ["experience", "profile_summary"]
     },
     {
-      "name": "Industry & Domain Fit",
+      "name": "Industry & Domain Knowledge",
       "jd_signals": ["Finance", "Regulatory compliance"],
-      "weight_percent": 20,
+      "weight_percent": 15,
       "rubric": {
         "excellent": "Deep industry expertise with proven domain knowledge",
         "good": "Solid industry experience",
@@ -168,16 +173,53 @@ OUTPUT SHAPE:
         "poor": "Limited industry background"
       },
       "target_cv_fields": ["experience", "profile_summary"]
+    },
+    {
+      "name": "Problem Solving & Innovation",
+      "jd_signals": ["innovative solutions", "complex challenges"],
+      "weight_percent": 10,
+      "rubric": {
+        "excellent": "Demonstrated track record of innovative solutions to complex problems",
+        "good": "Evidence of problem-solving capabilities",
+        "fair": "Some problem-solving experience",
+        "poor": "Limited innovation demonstrated"
+      },
+      "target_cv_fields": ["experience", "achievements"]
+    },
+    {
+      "name": "Communication & Stakeholder Management",
+      "jd_signals": ["stakeholder engagement", "presentation skills"],
+      "weight_percent": 10,
+      "rubric": {
+        "excellent": "Exceptional communication skills with C-level stakeholder management",
+        "good": "Strong communication and stakeholder collaboration",
+        "fair": "Adequate communication skills",
+        "poor": "Limited stakeholder management experience"
+      },
+      "target_cv_fields": ["experience", "profile_summary"]
+    },
+    {
+      "name": "Cultural Fit & Alignment",
+      "jd_signals": ["company values", "team collaboration"],
+      "weight_percent": 5,
+      "rubric": {
+        "excellent": "Perfect alignment with company culture and values",
+        "good": "Strong cultural fit indicators",
+        "fair": "Some alignment with company values",
+        "poor": "Limited cultural fit evidence"
+      },
+      "target_cv_fields": ["profile_summary", "experience"]
     }
   ]
 }
 
 RULES:
-- Extract 4-7 evaluation criteria
+- Extract EXACTLY 7 evaluation criteria (not 4-7, EXACTLY 7)
 - Weights MUST sum to exactly 100
 - Make criteria specific to THIS job posting
 - Include concrete JD signals from the posting
 - Create actionable rubrics for scoring
+- For qualifications, responsibilities, experience: Include FULL DETAIL without condensing
 - For scope_indicators, ONLY use these keys: team_size, budget, regions, stakeholder_levels
 - Do NOT add unknown or extra fields to any object`;
 

@@ -4,44 +4,47 @@
 CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and cover letters to specific job postings. Its core purpose is to ensure strict ATS compliance, maintain privacy security, and optimize documents through a two-pass AI process with mandatory achievement grounding enforcement. The application features all seven frontend pages, a robust backend API, database integration, authentication, and AI services. It supports both URL-based job description scraping and manual job description input. The project provides a professional, secure, and efficient solution for job seekers with cost-effective AI model usage (gpt-4o-mini).
 
 ## Recent Changes (Latest Session)
-### ✅ Full Traceability Implementation (COMPLETE)
-- **Raw CV Input**: System now stores the exact CV text sent to AI (full or condensed)
+### ✅ Enhanced JD Specification Schema (COMPLETE - Current Session)
+- **New Optional Fields Added to JD Spec** (backward compatible):
+  - `qualifications`: Educational/certification requirements extracted from JD
+  - `experience`: Specific experience requirements (NO condensing per requirements)
+  - `success_for_role`: What success looks like in the role
+  - `why_this_company`: Company mission, vision, and selling points
+  - `responsibilities`: Full detailed list (NO condensing - already existed, remains required)
+- **AI Prompt Updated**: Phase 0 prompt instructs AI to populate all fields with FULL DETAIL
+- **Schema Design**: New fields marked optional for backward compatibility with existing runs
+- **Tested**: E2E testing confirms AI generates all 5 new fields with comprehensive detail
+
+### ✅ Evaluation Criteria Target: Exactly 7 Items (COMPLETE - Current Session)
+- **AI Prompt Enforcement**: Phase 0 system prompt explicitly states "EXACTLY 7 criteria (not 4-7, EXACTLY 7)"
+- **Schema Validation**: Kept as `.min(4).max(7)` for backward compatibility with historical runs
+- **Example Provided**: AI prompt includes 7-criteria example with weights summing to 100%
+- **Auto-Repair**: Weight normalization ensures sum equals 100% even if AI makes rounding errors
+- **Tested**: Confirmed AI consistently generates exactly 7 evaluation criteria with weights summing to 100%
+- **Design**: Soft enforcement via prompts; old runs with 4-6 criteria remain valid
+
+### ✅ Manual JD Input Fix (COMPLETE - Current Session)
+- **Bug Fixed**: Manual JD payload now uses correct nested structure matching scraped jobs
+- **Structure**: `company.name`, `role.title`, `description.clean_text` properly populated
+- **Tested**: Phase 0 prompts now display full manual job description text correctly
+
+### ✅ Full Traceability Implementation (COMPLETE - Previous Session)
+- **Raw CV Input**: System stores exact CV text sent to AI (full or condensed)
 - **AI Prompts Captured**: All system and user prompts saved for every AI call (Phase 0, 1A, 1B, 1C, 2)
-- **Results UI Enhanced**: New Raw Data tab displays:
-  - Raw CV input sent to AI with Full/Condensed indicator
-  - All AI prompts with system & user sections for each phase
-  - All JSON outputs organized by processing phase
-- **Database Schema**: Added `rawCvInput` (text) and `promptsJsonb` (jsonb) fields to drafts and finals tables
-- **Complete Audit Trail**: Every AI interaction is now fully traceable for debugging and compliance
+- **Results UI Enhanced**: Raw Data tab displays raw CV input, all AI prompts, and all JSON outputs
+- **Database Schema**: Added `rawCvInput` (text) and `promptsJsonb` (jsonb) fields
+- **Complete Audit Trail**: Every AI interaction fully traceable for debugging and compliance
 
-### ✅ Grounding Enforcement Implementation (COMPLETE)
-- **Runtime Validation**: Added hard error checking for missing grounding on ALL achievements
-- **Strengthened AI Prompts**: Added prominent 🚨 warning at top of Phase 1A prompt with exact example
+### ✅ Grounding Enforcement Implementation (COMPLETE - Previous Session)
+- **Runtime Validation**: Hard error checking for missing grounding on ALL achievements
+- **Strengthened AI Prompts**: Prominent 🚨 warning at top of Phase 1A prompt with exact example
 - **Field Name Alignment**: Fixed achievement field from "text" to "bullet" to match schema
-- **Validation Status**: AI now consistently provides grounding.source_snippet; system blocks ungrounded content
-
-### ✅ Schema Alignment Fixes (CV - COMPLETE)
-- **criteria_coverage**: Fixed to use criterion_ref, sections_addressing, strength fields
-- **jd_alignment (experience)**: Aligned to use criteria_hit, jd_signals_used arrays
-- **jd_alignment (CV-level)**: Implemented headline_signals, profile_signals, etc.
-- **Achievement structure**: Corrected to use "bullet" field with mandatory grounding object
-
-### ✅ Auto-Repair Enhancements
-- **CV Structure**: Handles both nested (`result.cv.*`) and flat CV objects from AI
-- **Key Skills Trimming**: Enforces 8-16 limit, trims excess items
-- **Profile Summary**: Enforces 80-220 character limit
-- **Weight Normalization**: Zero-division guard prevents crashes when weights sum to zero
+- **Validation Status**: AI consistently provides grounding.source_snippet; system blocks ungrounded content
 
 ### ⚠️ Known Issues
 - **Cover Letter Schema**: Mismatches remain in sign_off field and recipient structure
 - **Impact**: Cover letter generation may fail validation; CV generation working correctly
-- **Status**: Non-blocking for core grounding enforcement objective
-
-### Testing Insights
-- Conducted extensive E2E testing with real job submissions
-- Confirmed AI provides grounding when prompted with visual emphasis
-- Validated runtime enforcement blocks ungrounded achievements
-- Using gpt-4o-mini for cost-effective testing per requirements
+- **Status**: Non-blocking for core functionality
 
 ## User Preferences
 - All data encrypted at rest and in transit
