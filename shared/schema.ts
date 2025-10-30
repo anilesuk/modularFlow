@@ -8,9 +8,17 @@ import {
   uuid,
   index,
   integer,
+  customType,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Custom bytea type for binary data
+const bytea = customType<{ data: Buffer; notNull: false; default: false }>({
+  dataType() {
+    return 'bytea';
+  },
+});
 
 // Session storage table - required for Replit Auth
 export const sessions = pgTable(
@@ -148,10 +156,10 @@ export const artifacts = pgTable("artifacts", {
   coverLetterPath: text("cover_letter_path"),
   addedPointsPath: text("added_points_path"),
   
-  // Binary fallback (used when object storage unavailable)
-  cvBinary: text("cv_binary"), // base64-encoded binary data
-  coverLetterBinary: text("cover_letter_binary"),
-  enhancementBinary: text("enhancement_binary"),
+  // Binary fallback (used when object storage unavailable) - raw binary data
+  cvBinary: bytea("cv_binary"),
+  coverLetterBinary: bytea("cover_letter_binary"),
+  enhancementBinary: bytea("enhancement_binary"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

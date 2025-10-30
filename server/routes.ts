@@ -376,36 +376,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({ url: downloadUrl });
       } else {
         // Database storage flow - serve binary data directly
-        let base64Data: string | null;
+        let binaryData: Buffer | null;
         let filename: string;
         
         switch (documentType) {
           case "cv":
-            base64Data = artifact.cvBinary;
+            binaryData = artifact.cvBinary;
             filename = "CV.docx";
             break;
           case "cover-letter":
-            base64Data = artifact.coverLetterBinary;
+            binaryData = artifact.coverLetterBinary;
             filename = "Cover_Letter.docx";
             break;
           case "added-points":
-            base64Data = artifact.enhancementBinary;
+            binaryData = artifact.enhancementBinary;
             filename = "Enhancement_Report.docx";
             break;
           default:
             return res.status(400).json({ error: "Invalid document type" });
         }
 
-        if (!base64Data) {
+        if (!binaryData) {
           return res.status(404).json({ error: "Document not found in database storage" });
         }
 
-        // Decode base64 and serve as binary
-        const buffer = Buffer.from(base64Data, 'base64');
+        // Serve raw binary data
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Content-Length', buffer.length);
-        res.send(buffer);
+        res.setHeader('Content-Length', binaryData.length);
+        res.send(binaryData);
       }
     } catch (error) {
       console.error("Error generating download URL:", error);
@@ -633,14 +632,14 @@ ${cvContent}
           addedPointsPath: enhancementPath,
         });
       } else {
-        // Store as base64-encoded binary in database
+        // Store as raw binary in database (bytea columns)
         await storage.createArtifact({
           runId,
-          cvBinary: cvBuffer.toString('base64'),
-          coverLetterBinary: coverLetterBuffer.toString('base64'),
-          enhancementBinary: enhancementBuffer.toString('base64'),
+          cvBinary: cvBuffer as any,
+          coverLetterBinary: coverLetterBuffer as any,
+          enhancementBinary: enhancementBuffer as any,
         });
-        console.log(`Documents stored in database (base64) for run ${runId}`);
+        console.log(`Documents stored in database (bytea) for run ${runId}`);
       }
     } catch (renderError: any) {
       // Log the error but don't fail the entire run - user can still see draft/final data
