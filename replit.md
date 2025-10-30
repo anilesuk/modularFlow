@@ -51,6 +51,14 @@ CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and c
 - **Clear Error Messages**: Specific errors indicating missing career history
 - **Status**: Tested with production-like data
 
+### ✅ Hardcoded Date Removal from AI Prompts (COMPLETE - Current Session)
+- **Issue**: System prompts contained hardcoded dates (2015-2023, 2007-2014, etc.) that could bias AI to use those specific dates
+- **Solution**: Replaced all specific dates with YYYY placeholders
+- **Company Name Placeholders**: Changed from specific examples to generic "Most Recent Company Name from Profile"
+- **Explicit Instructions Added**: "USE THE ACTUAL DATES from the candidate profile - DO NOT invent or modify dates"
+- **Scope**: Applied to both Phase 1A (generateCV) and Phase 2 (optimizeCV) prompts
+- **Result**: AI model no longer biased toward example dates; uses actual profile data
+
 ### ✅ CV Experience and Profile Summary Updates (COMPLETE - Current Session)
 - **All Experiences Included**: Removed 10-12 year restriction; ALL experiences now appear in reverse chronological order
 - **Variable Achievement Counts**: 
