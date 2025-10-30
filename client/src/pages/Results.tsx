@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { Run, Draft, Final, Artifact } from "@shared/schema";
 import type { Scorecard, TraceChange, CvDocument, CoverLetter } from "@shared/schema";
 import { Link } from "wouter";
@@ -199,7 +200,7 @@ export default function Results() {
 
         {/* Documents */}
         <Tabs defaultValue="scorecard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="scorecard" data-testid="tab-scorecard">
               <ListChecks className="h-4 w-4 mr-2" />
               Scorecard
@@ -215,6 +216,9 @@ export default function Results() {
             <TabsTrigger value="cover-letter" data-testid="tab-cover-letter">
               <Mail className="h-4 w-4 mr-2" />
               Cover Letter
+            </TabsTrigger>
+            <TabsTrigger value="raw-data" data-testid="tab-raw-data">
+              Raw Data
             </TabsTrigger>
           </TabsList>
 
@@ -498,6 +502,186 @@ export default function Results() {
               ) : (
                 <p className="text-muted-foreground">
                   Cover letter data not available. Processing may have failed before draft generation.
+                </p>
+              )}
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="raw-data" className="space-y-6">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-6">Raw JSON Outputs</h2>
+              <p className="text-sm text-muted-foreground mb-6">
+                View all AI-generated JSON at each processing stage. Useful for debugging and understanding the AI's decision-making process.
+              </p>
+              
+              <Accordion type="multiple" className="space-y-2">
+                {/* Phase 0: Job Analysis */}
+                {draft?.jdSpecJsonb && (
+                  <AccordionItem value="jd-spec" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 0: JD Specification</span>
+                        <Badge variant="secondary">Job Analysis</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(draft.jdSpecJsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+                
+                {draft?.evaluationCriteriaJsonb && (
+                  <AccordionItem value="eval-criteria" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 0: Evaluation Criteria</span>
+                        <Badge variant="secondary">Job Analysis</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(draft.evaluationCriteriaJsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {/* Phase 1: Draft Generation */}
+                {draft?.cvJsonb && (
+                  <AccordionItem value="cv-draft" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 1A: CV Draft</span>
+                        <Badge variant="secondary">Pass 1</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(draft.cvJsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {draft?.coverLetterJsonb && (
+                  <AccordionItem value="cl-draft" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 1B: Cover Letter Draft</span>
+                        <Badge variant="secondary">Pass 1</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(draft.coverLetterJsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {draft?.scorecardPass1Jsonb && (
+                  <AccordionItem value="scorecard-p1" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 1C: Scorecard Pass 1</span>
+                        <Badge variant="secondary">Analysis</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(draft.scorecardPass1Jsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {draft?.recommendationsPass1Jsonb && (
+                  <AccordionItem value="recommendations" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 1C: Recommendations</span>
+                        <Badge variant="secondary">Analysis</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(draft.recommendationsPass1Jsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {/* Phase 2: Optimized/Final */}
+                {final?.cvJsonb && (
+                  <AccordionItem value="cv-final" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 2: CV Final (Optimized)</span>
+                        <Badge variant="default">Pass 2</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(final.cvJsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {final?.coverLetterJsonb && (
+                  <AccordionItem value="cl-final" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 2: Cover Letter Final (Optimized)</span>
+                        <Badge variant="default">Pass 2</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(final.coverLetterJsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {final?.scorecardPass2Jsonb && (
+                  <AccordionItem value="scorecard-p2" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 2: Scorecard Pass 2 (Final)</span>
+                        <Badge variant="default">Pass 2</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(final.scorecardPass2Jsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
+                {final?.addedPointsJsonb && (
+                  <AccordionItem value="added-points" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">Phase 2: Enhancement Trace</span>
+                        <Badge variant="default">Pass 2</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 mt-2">
+                        {JSON.stringify(final.addedPointsJsonb, null, 2)}
+                      </pre>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
+
+              {!draft && !final && (
+                <p className="text-muted-foreground text-center py-8">
+                  No processing data available. The run may have failed before generating any outputs.
                 </p>
               )}
             </Card>
