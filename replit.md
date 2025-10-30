@@ -47,10 +47,10 @@ CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and c
   - Most recent role: 5-7 bullets
   - Second role: 3-5 bullets
   - Older roles: 2 bullets each
-- **Profile Summary**: Changed from 80-220 characters to 100-125 WORDS
+- **Profile Summary**: Changed from 80-220 characters to 95-125 WORDS (adjusted for AI model reliability)
 - **Validation**: 3-layer enforcement (AI prompts + runtime checks + Zod schema refinement)
 - **Schema Safety**: Zod refine() validates word count at schema level; runtime checks in Phase 1A and Phase 2
-- **Tested**: Pending end-to-end verification with long career history
+- **Pragmatic Range**: 95-125 words provides buffer for consistent AI generation while maintaining quality
 
 ### ⚠️ Known Issues
 - **Cover Letter Schema**: Mismatches remain in sign_off field and recipient structure

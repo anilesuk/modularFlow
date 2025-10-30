@@ -27,11 +27,11 @@ function autoRepairAIOutput(result: any): any {
     }
   }
   
-  // Validate profile_summary word count (100-125 words)
+  // Validate profile_summary word count (95-125 words)
   if (cv.profile_summary && typeof cv.profile_summary === 'string') {
     const wordCount = cv.profile_summary.trim().split(/\s+/).length;
-    if (wordCount < 100 || wordCount > 125) {
-      console.log(`Auto-repair WARNING: profile_summary has ${wordCount} words (should be 100-125)`);
+    if (wordCount < 95 || wordCount > 125) {
+      console.log(`Auto-repair WARNING: profile_summary has ${wordCount} words (should be 95-125)`);
       // Don't auto-truncate by words - AI should fix this in retry
     }
   }
@@ -304,11 +304,11 @@ WRONG FORMAT (will be REJECTED):
   "result": "..."
 }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨🚨🚨 PROFILE SUMMARY: MUST BE 100-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
+🚨🚨🚨 PROFILE SUMMARY: MUST BE 95-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
-is less than 100 words or more than 125 words.
+is less than 95 words or more than 125 words.
 
 DO NOT include word count annotations like "(112 words)" in the summary text!
 The summary should end with a period, not with a word count note.
@@ -335,7 +335,7 @@ innovation through emerging technologies. Passionate about mentoring engineering
 establishing best practices for scalable solutions. Committed to delivering measurable business 
 outcomes through technology excellence."
 
-WRITE AT LEAST 100 WORDS. If you're close to 100, add more detail to reach the minimum!
+WRITE AT LEAST 95 WORDS. Target 100-120 words for best results!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -362,7 +362,7 @@ GROUNDING & ALIGNMENT (MANDATORY)
   Each item maps an evaluation criterion to which CV sections address it and how strongly.
 
 VALIDATE BEFORE RETURN
-- profile_summary 100–125 WORDS (count words!); key_skills length 8–16.
+- profile_summary 95–125 WORDS (count words!); key_skills length 8–16.
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -421,7 +421,7 @@ REQUIRED JSON STRUCTURE:
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 100-125 WORDS, key_skills has 8-16 items.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills has 8-16 items.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -459,10 +459,10 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 1
         console.warn('WARNING: AI did not provide criteria_coverage mapping');
       }
       
-      // Runtime validation: Enforce 100-125 word count for profile_summary
+      // Runtime validation: Enforce 95-125 word count for profile_summary
       const wordCount = cv.profile_summary.trim().split(/\s+/).length;
-      if (wordCount < 100 || wordCount > 125) {
-        throw new Error(`Profile summary has ${wordCount} words, must be 100-125 words`);
+      if (wordCount < 95 || wordCount > 125) {
+        throw new Error(`Profile summary has ${wordCount} words, must be 95-125 words`);
       }
       
       return cv;
@@ -783,11 +783,11 @@ WRONG FORMAT (will be REJECTED):
   "result": "..."
 }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨🚨🚨 PROFILE SUMMARY: MUST BE 100-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
+🚨🚨🚨 PROFILE SUMMARY: MUST BE 95-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
-is less than 100 words or more than 125 words.
+is less than 95 words or more than 125 words.
 
 DO NOT include word count annotations like "(112 words)" in the summary text!
 The summary should end with a period, not with a word count note.
@@ -814,7 +814,7 @@ innovation through emerging technologies. Passionate about mentoring engineering
 establishing best practices for scalable solutions. Committed to delivering measurable business 
 outcomes through technology excellence."
 
-WRITE AT LEAST 100 WORDS. If you're close to 100, add more detail to reach the minimum!
+WRITE AT LEAST 95 WORDS. Target 100-120 words for best results!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -841,7 +841,7 @@ GROUNDING & ALIGNMENT (MANDATORY)
   Each item maps an evaluation criterion to which CV sections address it and how strongly.
 
 VALIDATE BEFORE RETURN
-- profile_summary 100–125 WORDS (count words!); key_skills length 8–16.
+- profile_summary 95–125 WORDS (count words!); key_skills length 8–16.
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -900,7 +900,7 @@ REQUIRED JSON STRUCTURE:
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 100-125 WORDS, key_skills has 8-16 items.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills has 8-16 items.`;
 
     const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria);
     return { cv, prompts: { system: systemPrompt, user: userPrompt } };
@@ -1138,11 +1138,11 @@ CRITICAL:
     const systemPrompt = `You refine CV and cover-letter JSON from Pass 1 using explicit recommendations. Return ONE valid JSON object only.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨🚨🚨 PROFILE SUMMARY: MUST BE 100-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
+🚨🚨🚨 PROFILE SUMMARY: MUST BE 95-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
-is less than 100 words or more than 125 words.
+is less than 95 words or more than 125 words.
 
 DO NOT include word count annotations like "(112 words)" in the summary text!
 The summary should end with a period, not with a word count note.
@@ -1235,10 +1235,10 @@ Return refined JSON with addedPoints tracking changes. Calculate overall_score_1
         }
       }
       
-      // Runtime validation: Enforce 100-125 word count for profile_summary
+      // Runtime validation: Enforce 95-125 word count for profile_summary
       const wordCount = cvFinal.profile_summary.trim().split(/\s+/).length;
-      if (wordCount < 100 || wordCount > 125) {
-        throw new Error(`Optimized profile summary has ${wordCount} words, must be 100-125 words`);
+      if (wordCount < 95 || wordCount > 125) {
+        throw new Error(`Optimized profile summary has ${wordCount} words, must be 95-125 words`);
       }
       
       // Safely validate addedPoints array

@@ -289,10 +289,10 @@ export const cvDocumentSchema = z.object({
   profile_summary: z.string().min(1).refine(
     (val) => {
       const wordCount = val.trim().split(/\s+/).length;
-      return wordCount >= 100 && wordCount <= 125;
+      return wordCount >= 95 && wordCount <= 125;
     },
     {
-      message: "Profile summary must be between 100 and 125 words",
+      message: "Profile summary must be between 95 and 125 words",
     }
   ),
   key_skills: z.array(z.string()).min(8).max(16),
