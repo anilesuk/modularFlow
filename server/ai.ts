@@ -71,107 +71,41 @@ async function autoRepairAIOutput(result: any, cvConfig: CvGenerationConfig): Pr
     }
   }
   
-  // Auto-repair key_skills: Convert array to prose if AI returned wrong format
-  if (cv.key_skills && Array.isArray(cv.key_skills)) {
-    console.log(`Auto-repair: Converting key_skills from array (${cv.key_skills.length} items) to prose paragraph`);
-    cv.key_skills = cv.key_skills.join(', ') + '.';
-  }
-  
-  // Auto-repair key_skills word count (target: 60-80 words)
-  if (cv.key_skills && typeof cv.key_skills === 'string') {
-    const wordCount = cv.key_skills.trim().split(/\s+/).length;
+  // Auto-repair key_skills: Validate array format (target: 8-15 items)
+  if (cv.key_skills) {
+    // Legacy fallback: Convert string to array if AI returned old format
+    if (typeof cv.key_skills === 'string') {
+      console.log(`Auto-repair: Converting key_skills from string to array (legacy format)`);
+      cv.key_skills = cv.key_skills.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean);
+    }
     
-    if (wordCount < 60) {
-      // Close to minimum - intelligently expand
-      const wordsNeeded = 60 - wordCount;
-      console.log(`Auto-repair: Expanding key_skills from ${wordCount} to 60+ words (adding ~${wordsNeeded} words)`);
-      
-      const expansions = [
-        ", advanced problem-solving capabilities",
-        ", strategic planning and execution",
-        ", stakeholder management and communication",
-        ", team leadership and mentoring",
-        ", process optimization and improvement",
-        ", cross-functional collaboration"
-      ];
-      
-      let expanded = cv.key_skills.trim();
-      let currentCount = wordCount;
-      
-      for (const phrase of expansions) {
-        const phraseWords = phrase.trim().split(/\s+/).length;
-        if (currentCount + phraseWords <= 80) {
-          expanded = expanded.replace(/\.\s*$/, '') + phrase;
-          currentCount += phraseWords;
-          
-          if (currentCount >= 60) {
-            if (!expanded.endsWith('.')) {
-              expanded += '.';
-            }
-            break;
-          }
-        }
+    // Validate array length
+    if (Array.isArray(cv.key_skills)) {
+      if (cv.key_skills.length < 5) {
+        console.log(`Auto-repair: WARNING - key_skills has only ${cv.key_skills.length} items (minimum 5)`);
+      } else if (cv.key_skills.length > 20) {
+        console.log(`Auto-repair: Trimming key_skills from ${cv.key_skills.length} to 20 items`);
+        cv.key_skills = cv.key_skills.slice(0, 20);
       }
-      
-      cv.key_skills = expanded;
-      console.log(`Auto-repair: key_skills expanded to ${expanded.split(/\s+/).length} words`);
-    } else if (wordCount > 80) {
-      // Slightly too long - trim to 80 words
-      console.log(`Auto-repair: Trimming key_skills from ${wordCount} to 80 words`);
-      const words = cv.key_skills.trim().split(/\s+/);
-      cv.key_skills = words.slice(0, 80).join(' ') + '.';
     }
   }
   
-  // Auto-repair technical_skills: Convert array to prose if AI returned wrong format
-  if (cv.technical_skills && Array.isArray(cv.technical_skills)) {
-    console.log(`Auto-repair: Converting technical_skills from array (${cv.technical_skills.length} items) to prose paragraph`);
-    cv.technical_skills = cv.technical_skills.join(', ') + '.';
-  }
-  
-  // Auto-repair technical_skills word count (target: 60-100 words)
-  if (cv.technical_skills && typeof cv.technical_skills === 'string') {
-    const wordCount = cv.technical_skills.trim().split(/\s+/).length;
+  // Auto-repair technical_skills: Validate array format (target: 20-40 items)
+  if (cv.technical_skills) {
+    // Legacy fallback: Convert string to array if AI returned old format
+    if (typeof cv.technical_skills === 'string') {
+      console.log(`Auto-repair: Converting technical_skills from string to array (legacy format)`);
+      cv.technical_skills = cv.technical_skills.split(/[,;|]/).map((s: string) => s.trim()).filter(Boolean);
+    }
     
-    if (wordCount < 60) {
-      // Close to minimum - intelligently expand
-      const wordsNeeded = 60 - wordCount;
-      console.log(`Auto-repair: Expanding technical_skills from ${wordCount} to 60+ words (adding ~${wordsNeeded} words)`);
-      
-      const expansions = [
-        ", version control systems and CI/CD pipelines",
-        ", infrastructure as code and automation tools",
-        ", monitoring and observability platforms",
-        ", security best practices and compliance frameworks",
-        ", performance optimization and scalability patterns",
-        ", testing frameworks and quality assurance methodologies"
-      ];
-      
-      let expanded = cv.technical_skills.trim();
-      let currentCount = wordCount;
-      
-      for (const phrase of expansions) {
-        const phraseWords = phrase.trim().split(/\s+/).length;
-        if (currentCount + phraseWords <= 100) {
-          expanded = expanded.replace(/\.\s*$/, '') + phrase;
-          currentCount += phraseWords;
-          
-          if (currentCount >= 60) {
-            if (!expanded.endsWith('.')) {
-              expanded += '.';
-            }
-            break;
-          }
-        }
+    // Validate array length
+    if (Array.isArray(cv.technical_skills)) {
+      if (cv.technical_skills.length < 10) {
+        console.log(`Auto-repair: WARNING - technical_skills has only ${cv.technical_skills.length} items (minimum 10)`);
+      } else if (cv.technical_skills.length > 50) {
+        console.log(`Auto-repair: Trimming technical_skills from ${cv.technical_skills.length} to 50 items`);
+        cv.technical_skills = cv.technical_skills.slice(0, 50);
       }
-      
-      cv.technical_skills = expanded;
-      console.log(`Auto-repair: technical_skills expanded to ${expanded.split(/\s+/).length} words`);
-    } else if (wordCount > 100) {
-      // Slightly too long - trim to 100 words
-      console.log(`Auto-repair: Trimming technical_skills from ${wordCount} to 100 words`);
-      const words = cv.technical_skills.trim().split(/\s+/);
-      cv.technical_skills = words.slice(0, 100).join(' ') + '.';
     }
   }
   
@@ -716,16 +650,18 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
         throw new Error(`Profile summary has ${profileWordCount} words, must be 95-125 words`);
       }
       
-      // Runtime validation: Enforce 60-80 word count for key_skills
-      const keySkillsWordCount = cv.key_skills.trim().split(/\s+/).length;
-      if (keySkillsWordCount < 60 || keySkillsWordCount > 80) {
-        throw new Error(`Key skills has ${keySkillsWordCount} words, must be 60-80 words`);
+      // Runtime validation: Enforce 8-15 items for key_skills array
+      if (Array.isArray(cv.key_skills)) {
+        if (cv.key_skills.length < 5 || cv.key_skills.length > 20) {
+          throw new Error(`Key skills has ${cv.key_skills.length} items, must be 5-20 items`);
+        }
       }
       
-      // Runtime validation: Enforce 60-100 word count for technical_skills
-      const techSkillsWordCount = cv.technical_skills.trim().split(/\s+/).length;
-      if (techSkillsWordCount < 60 || techSkillsWordCount > 100) {
-        throw new Error(`Technical skills has ${techSkillsWordCount} words, must be 60-100 words`);
+      // Runtime validation: Enforce 20-40 items for technical_skills array
+      if (Array.isArray(cv.technical_skills)) {
+        if (cv.technical_skills.length < 10 || cv.technical_skills.length > 50) {
+          throw new Error(`Technical skills has ${cv.technical_skills.length} items, must be 10-50 items`);
+        }
       }
       
       // Runtime validation: Check experience count matches candidate profile analysis
