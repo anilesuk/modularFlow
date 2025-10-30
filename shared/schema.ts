@@ -139,12 +139,19 @@ export type Final = typeof finals.$inferSelect;
 export const insertFinalSchema = createInsertSchema(finals).omit({ createdAt: true });
 export type InsertFinal = z.infer<typeof insertFinalSchema>;
 
-// Artifacts - Generated .docx file paths
+// Artifacts - Generated .docx file paths OR binary data (fallback)
 export const artifacts = pgTable("artifacts", {
   runId: uuid("run_id").primaryKey().references(() => runs.id, { onDelete: 'cascade' }),
-  cvPath: text("cv_path").notNull(),
-  coverLetterPath: text("cover_letter_path").notNull(),
-  addedPointsPath: text("added_points_path").notNull(),
+  
+  // Object storage paths (preferred method)
+  cvPath: text("cv_path"),
+  coverLetterPath: text("cover_letter_path"),
+  addedPointsPath: text("added_points_path"),
+  
+  // Binary fallback (used when object storage unavailable)
+  cvBinary: text("cv_binary"), // base64-encoded binary data
+  coverLetterBinary: text("cover_letter_binary"),
+  enhancementBinary: text("enhancement_binary"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
