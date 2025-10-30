@@ -41,6 +41,16 @@ CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and c
 - **Field Name Alignment**: Fixed achievement field from "text" to "bullet" to match schema
 - **Validation Status**: AI consistently provides grounding.source_snippet; system blocks ungrounded content
 
+### ✅ All Experiences Enforcement (COMPLETE - Current Session)
+- **Issue**: AI was only generating 1 experience entry for 28-year career
+- **Prominent Warning Section**: Added critical warning box with side-by-side examples (wrong vs correct)
+- **JSON Example Updated**: Shows 4 experience entries instead of 1 to guide AI
+- **Authoritative Baseline Validation**: Parses candidate profile to count expected roles before AI generation
+- **Dual Validation**: Checks both profile-based count (90% threshold) and career-span-based expectations
+- **Null Date Handling**: Treats null to_year as current year for ongoing roles
+- **Clear Error Messages**: Specific errors indicating missing career history
+- **Status**: Tested with production-like data
+
 ### ✅ CV Experience and Profile Summary Updates (COMPLETE - Current Session)
 - **All Experiences Included**: Removed 10-12 year restriction; ALL experiences now appear in reverse chronological order
 - **Variable Achievement Counts**: 

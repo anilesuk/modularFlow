@@ -308,11 +308,32 @@ RULES:
   /**
    * Phase 1A: Generate CV document only
    */
+  /**
+   * Helper: Parse candidate profile to extract expected number of roles
+   */
+  private extractExpectedRoleCount(candidateProfile: string): number {
+    // Look for common career history markers in the profile text
+    const roleMarkers = [
+      // Job titles often appear after years or employment dates
+      /\d{4}[\s\-–]+\d{4}|present/gi,  // Date ranges like "2015-2023" or "2020-Present"
+      // Company names with titles
+      /(?:director|manager|lead|senior|head|engineer|architect|consultant|specialist|analyst)/gi
+    ];
+    
+    // Count distinct date ranges (rough estimate of roles)
+    const dateRangeMatches = candidateProfile.match(/\d{4}[\s\-–]+(?:\d{4}|present|current)/gi) || [];
+    return Math.max(1, dateRangeMatches.length);
+  }
+
   async generateCV(
     candidateProfile: string,
     jdSpec: JdSpec,
     evaluationCriteria: EvaluationCriteria
   ): Promise<CvDocument> {
+    // Extract expected role count BEFORE sending to AI (authoritative baseline)
+    const expectedRoleCount = this.extractExpectedRoleCount(candidateProfile);
+    console.log(`Candidate profile analysis: detected ${expectedRoleCount} role(s) in career history`);
+    
     const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -378,6 +399,65 @@ outcomes through technology excellence."
 WRITE AT LEAST 95 WORDS. Target 100-120 words for best results!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨🚨🚨 CRITICAL: INCLUDE **ALL** CAREER EXPERIENCES - THIS WILL BE VALIDATED 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your response will be REJECTED if you omit ANY job from the candidate's career history!
+
+MANDATORY REQUIREMENTS:
+- Extract EVERY SINGLE role from the candidate profile (look through the entire CV text)
+- List them in REVERSE chronological order (most recent first, oldest last)
+- If a candidate has 28+ years of experience, you should have 4-6+ experience entries
+- Do NOT skip older roles - include them ALL
+- Variable achievement counts:
+  * Most recent role: 5-7 bullets
+  * Second most recent: 3-5 bullets  
+  * All older roles: 2 bullets EACH
+
+✗ WRONG - Only showing 1 recent role (WILL BE REJECTED):
+{
+  "experience": [
+    {
+      "employer": "Cognizant",
+      "dates": { "from_year": 2015, "to_year": 2023 },
+      "achievements": [...]
+    }
+  ]
+}
+
+✓ CORRECT - Showing ALL career history:
+{
+  "experience": [
+    {
+      "employer": "Cognizant", 
+      "title": "Senior Director",
+      "dates": { "from_year": 2015, "to_year": 2023 },
+      "achievements": [5-7 bullets with grounding]
+    },
+    {
+      "employer": "Cognizant",
+      "title": "Director Projects",
+      "dates": { "from_year": 2007, "to_year": 2014 },
+      "achievements": [3-5 bullets with grounding]
+    },
+    {
+      "employer": "Infosys",
+      "title": "Consulting Manager",
+      "dates": { "from_year": 2000, "to_year": 2006 },
+      "achievements": [2 bullets with grounding]
+    },
+    {
+      "employer": "Ramco Systems",
+      "title": "Senior Project Manager",
+      "dates": { "from_year": 1995, "to_year": 1999 },
+      "achievements": [2 bullets with grounding]
+    }
+  ]
+}
+
+SCAN THE ENTIRE CANDIDATE PROFILE! Don't stop at the first role you see!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
@@ -385,11 +465,6 @@ NON-NEGOTIABLE ATS + STYLE
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Quantify only where supported by the candidate profile (no invented numbers).
-- Include ALL experiences from the candidate profile in reverse chronological order (most recent first).
-- Variable achievement counts by recency:
-  * Most recent role: 5-7 achievement bullets with grounding
-  * Second most recent role: 3-5 achievement bullets with grounding
-  * All older roles: 2 achievement bullets each with grounding
 - Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
 GROUNDING & ALIGNMENT (MANDATORY)
@@ -426,7 +501,7 @@ ${criteriaContext}
 CANDIDATE PROFILE:
 ${candidateProfile}
 
-REQUIRED JSON STRUCTURE:
+REQUIRED JSON STRUCTURE (showing ALL experiences):
 {
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
@@ -435,27 +510,55 @@ REQUIRED JSON STRUCTURE:
   "technical_skills": "Tool1 | Tool2 | Tool3",
   "experience": [
     {
-      "employer": "Company",
+      "employer": "Most Recent Company",
       "location": "City, Country",
-      "title": "Job Title",
-      "dates": { "from_year": 2020, "to_year": 2023 },
+      "title": "Most Recent Job Title",
+      "dates": { "from_year": 2020, "to_year": 2024 },
+      "overview": "Brief scope of most recent role",
+      "achievements": [
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
+      ]
+    },
+    {
+      "employer": "Second Most Recent Company",
+      "location": "City, Country",
+      "title": "Second Most Recent Job Title",
+      "dates": { "from_year": 2015, "to_year": 2019 },
+      "overview": "Brief scope of second role",
+      "achievements": [
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
+      ]
+    },
+    {
+      "employer": "Third Company",
+      "location": "City, Country",
+      "title": "Third Job Title",
+      "dates": { "from_year": 2010, "to_year": 2014 },
       "overview": "Brief scope",
       "achievements": [
-        {
-          "bullet": "Action verb + SOAR fused into one bullet ending with period.",
-          "grounding": {
-            "source_snippet": "Copy exact text from candidate profile here",
-            "confidence": "high"
-          },
-          "situation": "Context",
-          "obstacle": "Challenge",
-          "action": "What was done",
-          "result": "Outcome with metrics if supported"
-        }
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
+      ]
+    },
+    {
+      "employer": "Fourth Company (if applicable)",
+      "location": "City, Country",
+      "title": "Fourth Job Title",
+      "dates": { "from_year": 2005, "to_year": 2009 },
+      "overview": "Brief scope",
+      "achievements": [
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
       ]
     }
   ],
-  "earlier_career_summary": [{"title": "Title", "employer": "Company"}],
+  "earlier_career_summary": [{"title": "Very Early Career Title", "employer": "Very Early Company"}],
   "education": [{"qualification": "Degree", "institution": "University", "city_country": "City"}],
   "certifications": ["Cert 1", "Cert 2"],
   "optional_sections": {}
@@ -503,6 +606,44 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
       const wordCount = cv.profile_summary.trim().split(/\s+/).length;
       if (wordCount < 95 || wordCount > 125) {
         throw new Error(`Profile summary has ${wordCount} words, must be 95-125 words`);
+      }
+      
+      // Runtime validation: Check experience count matches candidate profile analysis
+      if (cv.experience && cv.experience.length > 0) {
+        const currentYear = new Date().getFullYear();
+        
+        // Calculate career span from all experiences (handle null to_year as current year)
+        const allYears = cv.experience.flatMap(exp => {
+          const fromYear = exp.dates.from_year;
+          const toYear = exp.dates.to_year ?? currentYear; // null = current role
+          return [fromYear, toYear];
+        }).filter((year): year is number => year != null && !isNaN(year));
+        
+        if (allYears.length === 0) {
+          throw new Error('No valid years found in experience entries. AI must provide from_year and to_year for all roles.');
+        }
+        
+        const earliestYear = Math.min(...allYears);
+        const latestYear = Math.max(...allYears);
+        const careerSpan = latestYear - earliestYear;
+        
+        // Check against authoritative baseline from candidate profile
+        const minExpectedFromProfile = Math.max(1, Math.floor(expectedRoleCount * 0.9)); // Allow only 10% margin - AI must include nearly all roles
+        
+        if (cv.experience.length < minExpectedFromProfile) {
+          console.warn(`CRITICAL: AI generated only ${cv.experience.length} experience entries, but candidate profile contains ${expectedRoleCount} distinct roles. AI is omitting career history!`);
+          throw new Error(`Only ${cv.experience.length} experience entries generated, but candidate profile shows ${expectedRoleCount} distinct roles. AI must extract ALL roles from the career history, not just recent ones.`);
+        }
+        
+        // Additional sanity check: career span vs entry count
+        let minExpectedFromSpan = 1;
+        if (careerSpan >= 25) minExpectedFromSpan = 4;
+        else if (careerSpan >= 15) minExpectedFromSpan = 3;
+        else if (careerSpan >= 8) minExpectedFromSpan = 2;
+        
+        if (cv.experience.length < minExpectedFromSpan) {
+          console.warn(`WARNING: CV has ${cv.experience.length} experience entries for ${careerSpan} year career span (${earliestYear}-${latestYear}), expected at least ${minExpectedFromSpan}`);
+        }
       }
       
       return cv;
@@ -857,6 +998,65 @@ outcomes through technology excellence."
 WRITE AT LEAST 95 WORDS. Target 100-120 words for best results!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨🚨🚨 CRITICAL: INCLUDE **ALL** CAREER EXPERIENCES - THIS WILL BE VALIDATED 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your response will be REJECTED if you omit ANY job from the candidate's career history!
+
+MANDATORY REQUIREMENTS:
+- Extract EVERY SINGLE role from the candidate profile (look through the entire CV text)
+- List them in REVERSE chronological order (most recent first, oldest last)
+- If a candidate has 28+ years of experience, you should have 4-6+ experience entries
+- Do NOT skip older roles - include them ALL
+- Variable achievement counts:
+  * Most recent role: 5-7 bullets
+  * Second most recent: 3-5 bullets  
+  * All older roles: 2 bullets EACH
+
+✗ WRONG - Only showing 1 recent role (WILL BE REJECTED):
+{
+  "experience": [
+    {
+      "employer": "Cognizant",
+      "dates": { "from_year": 2015, "to_year": 2023 },
+      "achievements": [...]
+    }
+  ]
+}
+
+✓ CORRECT - Showing ALL career history:
+{
+  "experience": [
+    {
+      "employer": "Cognizant", 
+      "title": "Senior Director",
+      "dates": { "from_year": 2015, "to_year": 2023 },
+      "achievements": [5-7 bullets with grounding]
+    },
+    {
+      "employer": "Cognizant",
+      "title": "Director Projects",
+      "dates": { "from_year": 2007, "to_year": 2014 },
+      "achievements": [3-5 bullets with grounding]
+    },
+    {
+      "employer": "Infosys",
+      "title": "Consulting Manager",
+      "dates": { "from_year": 2000, "to_year": 2006 },
+      "achievements": [2 bullets with grounding]
+    },
+    {
+      "employer": "Ramco Systems",
+      "title": "Senior Project Manager",
+      "dates": { "from_year": 1995, "to_year": 1999 },
+      "achievements": [2 bullets with grounding]
+    }
+  ]
+}
+
+SCAN THE ENTIRE CANDIDATE PROFILE! Don't stop at the first role you see!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
@@ -864,11 +1064,6 @@ NON-NEGOTIABLE ATS + STYLE
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Quantify only where supported by the candidate profile (no invented numbers).
-- Include ALL experiences from the candidate profile in reverse chronological order (most recent first).
-- Variable achievement counts by recency:
-  * Most recent role: 5-7 achievement bullets with grounding
-  * Second most recent role: 3-5 achievement bullets with grounding
-  * All older roles: 2 achievement bullets each with grounding
 - Technical skills is a single pipe-separated string (e.g., "Azure | Synapse | Databricks").
 
 GROUNDING & ALIGNMENT (MANDATORY)
@@ -905,7 +1100,7 @@ ${criteriaContext}
 CANDIDATE PROFILE:
 ${candidateProfile}
 
-REQUIRED JSON STRUCTURE:
+REQUIRED JSON STRUCTURE (showing ALL experiences):
 {
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
@@ -914,27 +1109,55 @@ REQUIRED JSON STRUCTURE:
   "technical_skills": "Tool1 | Tool2 | Tool3",
   "experience": [
     {
-      "employer": "Company",
+      "employer": "Most Recent Company",
       "location": "City, Country",
-      "title": "Job Title",
-      "dates": { "from_year": 2020, "to_year": 2023 },
+      "title": "Most Recent Job Title",
+      "dates": { "from_year": 2020, "to_year": 2024 },
+      "overview": "Brief scope of most recent role",
+      "achievements": [
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
+      ]
+    },
+    {
+      "employer": "Second Most Recent Company",
+      "location": "City, Country",
+      "title": "Second Most Recent Job Title",
+      "dates": { "from_year": 2015, "to_year": 2019 },
+      "overview": "Brief scope of second role",
+      "achievements": [
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
+      ]
+    },
+    {
+      "employer": "Third Company",
+      "location": "City, Country",
+      "title": "Third Job Title",
+      "dates": { "from_year": 2010, "to_year": 2014 },
       "overview": "Brief scope",
       "achievements": [
-        {
-          "bullet": "Action verb + SOAR fused into one bullet ending with period.",
-          "grounding": {
-            "source_snippet": "Copy exact text from candidate profile here",
-            "confidence": "high"
-          },
-          "situation": "Context",
-          "obstacle": "Challenge",
-          "action": "What was done",
-          "result": "Outcome with metrics if supported"
-        }
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
+      ]
+    },
+    {
+      "employer": "Fourth Company (if applicable)",
+      "location": "City, Country",
+      "title": "Fourth Job Title",
+      "dates": { "from_year": 2005, "to_year": 2009 },
+      "overview": "Brief scope",
+      "achievements": [
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
+        { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." }
       ]
     }
   ],
-  "earlier_career_summary": [{"title": "Title", "employer": "Company"}],
+  "earlier_career_summary": [{"title": "Very Early Career Title", "employer": "Very Early Company"}],
   "education": [{"qualification": "Degree", "institution": "University", "city_country": "City"}],
   "certifications": ["Cert 1", "Cert 2"],
   "optional_sections": {}
