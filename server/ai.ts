@@ -304,12 +304,31 @@ WRONG FORMAT (will be REJECTED):
   "result": "..."
 }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨🚨🚨 PROFILE SUMMARY: MUST BE 100-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
+is less than 100 words or more than 125 words.
+
+Example: "Strategic technology leader with 20+ years of experience driving 
+enterprise-scale digital transformation initiatives across Fortune 500 companies. 
+Deep expertise in cloud architecture, data analytics, and AI/ML solutions, with 
+proven track record of delivering $50M+ programs. Skilled in building high-performing 
+teams and fostering relationships with C-suite stakeholders. Led successful migrations 
+to Azure and AWS, reducing infrastructure costs by 40% while improving system 
+reliability. Expert in modern data platforms including Databricks, Snowflake, and 
+Synapse Analytics. Known for translating complex technical concepts into business 
+value and driving innovation through emerging technologies. Passionate about 
+mentoring engineering talent and establishing best practices for scalable solutions. 
+Committed to delivering measurable business outcomes through technology excellence." 
+[Word count: 112 words ✓]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
-- Profile summary length: 100–125 WORDS (strict - count words, not characters).
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Quantify only where supported by the candidate profile (no invented numbers).
 - Include ALL experiences from the candidate profile in reverse chronological order (most recent first).
@@ -750,12 +769,31 @@ WRONG FORMAT (will be REJECTED):
   "result": "..."
 }
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨🚨🚨 PROFILE SUMMARY: MUST BE 100-125 WORDS - THIS WILL BE VALIDATED 🚨🚨🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COUNT WORDS, NOT CHARACTERS! Your response will be REJECTED if profile_summary
+is less than 100 words or more than 125 words.
+
+Example: "Strategic technology leader with 20+ years of experience driving 
+enterprise-scale digital transformation initiatives across Fortune 500 companies. 
+Deep expertise in cloud architecture, data analytics, and AI/ML solutions, with 
+proven track record of delivering $50M+ programs. Skilled in building high-performing 
+teams and fostering relationships with C-suite stakeholders. Led successful migrations 
+to Azure and AWS, reducing infrastructure costs by 40% while improving system 
+reliability. Expert in modern data platforms including Databricks, Snowflake, and 
+Synapse Analytics. Known for translating complex technical concepts into business 
+value and driving innovation through emerging technologies. Passionate about 
+mentoring engineering talent and establishing best practices for scalable solutions. 
+Committed to delivering measurable business outcomes through technology excellence." 
+[Word count: 112 words ✓]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
 - Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
-- Profile summary length: 100–125 WORDS (strict - count words, not characters).
 - key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
 - Quantify only where supported by the candidate profile (no invented numbers).
 - Include ALL experiences from the candidate profile in reverse chronological order (most recent first).
