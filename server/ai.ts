@@ -1522,6 +1522,7 @@ CRITICAL:
     coverLetterDraft: CoverLetter,
     jobPosting: JobPostingPayload,
     recommendations: Recommendation[],
+    scorecardPhase1: Scorecard,
     cvConfig: CvGenerationConfig
   ): Promise<{
     cvFinal: CvDocument;
@@ -1552,8 +1553,16 @@ RULES
 - key_skills: 60–80 WORDS prose paragraph (COUNT WORDS!).
 - technical_skills: 60–100 WORDS prose paragraph (COUNT WORDS!).
 - Cover letter: 300–400 words; UK style; reflect final CV.
-- Rescore against the evaluation criteria and include overall_score_1_to_10 (weighted average).
-- Each scorecard item MUST include criterion_ref and reason_for_score.
+
+SCORING RULES (CRITICAL):
+- You are RE-EVALUATING documents YOU already scored and provided recommendations for.
+- You generated recommendations to improve specific criteria weaknesses.
+- Now that those recommendations have been applied, re-score against the SAME evaluation criteria.
+- For each criterion where improvements were made: score MUST increase (or stay same if already perfect).
+- For each criterion where no improvements were made: score should stay the same.
+- Scores should NEVER decrease - you are evaluating improvements YOU recommended.
+- Calculate overall_score_1_to_10 as weighted average using evaluation criteria weights.
+- Each scorecard item MUST include criterion_ref and reason_for_score explaining the improvement.
 - Track significant changes in addedPoints with exact final quotes and target_section.
 
 VALIDATE BEFORE RETURN
@@ -1577,6 +1586,11 @@ OUTPUT SHAPE
     const criteriaContext = evaluationCriteria.map(c => 
       `${c.name} (${c.weight_percent}%): ${c.jd_signals.join(', ')}`
     ).join('\n');
+    
+    // Format Phase 1 baseline scores for comparison
+    const baselineScoresContext = scorecardPhase1.scorecard.map(item => 
+      `${item.area}: ${item.score_1_to_10}/10 (criterion: ${item.criterion_ref || 'N/A'})`
+    ).join('\n');
 
     const userPrompt = `Refine these documents by applying recommendations. Preserve truthfulness.
 
@@ -1589,14 +1603,18 @@ Key tools: ${jdSpec.tools.slice(0, 5).join(', ')}
 EVALUATION CRITERIA (use for weighted scoring):
 ${criteriaContext}
 
+PHASE 1 BASELINE SCORES (YOUR PREVIOUS EVALUATION - BEFORE IMPROVEMENTS):
+Overall Score: ${scorecardPhase1.overall_score_1_to_10}/10
+${baselineScoresContext}
+
 CURRENT DRAFT:
 cv: ${JSON.stringify(cvDraft)}
 coverLetter: ${JSON.stringify(coverLetterDraft)}
 
-RECOMMENDATIONS:
+RECOMMENDATIONS YOU PROVIDED (now apply these and re-score):
 ${JSON.stringify(recommendations)}
 
-Return refined JSON with addedPoints tracking changes. Calculate overall_score_1_to_10 as weighted average using evaluation criteria weights above.`;
+TASK: Apply the recommendations above to improve the CV and cover letter. Then re-score using the SAME evaluation criteria. Since you are evaluating improvements YOU recommended, scores should increase where improvements were applied. Return refined JSON with addedPoints tracking changes. Calculate overall_score_1_to_10 as weighted average using evaluation criteria weights above.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Using gpt-4o-mini for cost-effective testing; can upgrade to gpt-4o or gpt-5 later
