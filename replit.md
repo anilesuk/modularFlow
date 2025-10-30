@@ -4,6 +4,16 @@
 CV Tailoring Pro is an enterprise-grade AI platform designed to tailor CVs and cover letters to specific job postings. Its core purpose is to ensure strict ATS compliance, maintain privacy security, and optimize documents through a two-pass AI process with mandatory achievement grounding enforcement. The application features all seven frontend pages, a robust backend API, database integration, authentication, and AI services. It supports both URL-based job description scraping and manual job description input. The project provides a professional, secure, and efficient solution for job seekers with cost-effective AI model usage (gpt-4o-mini).
 
 ## Recent Changes (Latest Session)
+### ✅ Antivirus False Positive Fix (COMPLETE - Current Session)
+- **Root Cause**: Generated .docx files lacked document metadata properties (creator, title, description, etc.)
+- **Antivirus Behavior**: Files without metadata trigger heuristic detection as "suspicious" by AV engines
+- **Solution**: Added comprehensive metadata to all document generation methods
+- **Metadata Fields Added**: creator, title, description, subject, keywords, lastModifiedBy, revision
+- **Professional Identity**: Documents now identified as "CV Tailoring Pro" generated content
+- **Implementation**: Updated DocumentGenerationService methods (generateCvDocx, generateCoverLetterDocx, generateEnhancementReportDocx)
+- **Testing**: Code reviewed by architect; system functional with recent successful runs
+- **Status**: Production-ready - documents now have professional metadata matching ChatGPT-style generation
+
 ### ✅ Database Fallback with Bytea Storage (COMPLETE - Current Session)
 - **Schema**: Added bytea columns (cvBinary, coverLetterBinary, enhancementBinary) to artifacts table using custom Drizzle type
 - **Storage Optimization**: Raw Buffer storage eliminates ~33% storage bloat and encode/decode CPU overhead vs base64
