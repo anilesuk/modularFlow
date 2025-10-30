@@ -569,8 +569,8 @@ NON-NEGOTIABLE ATS + STYLE
   * If source CV shows "January 2020 - December 2022" → extract: from_year: 2020, from_month: 1, to_year: 2022, to_month: 12
   * If source CV shows "2020 - 2022" (years only) → extract: from_year: 2020, from_month: null, to_year: 2022, to_month: null
   * Preserve month precision when present; use null for months when source only shows years
-- key_skills: 60-80 WORDS prose paragraph (COUNT WORDS, not items!).
-- technical_skills: 60-100 WORDS prose paragraph (COUNT WORDS, not items!).
+- key_skills: ARRAY of 8-15 skill statements/capabilities (e.g., ["Enterprise Data Strategy & Operating Model", "Data Governance & Standards (DAMA-DMBOK)", "Microsoft Data Platform (Synapse, ADF, Purview)"])
+- technical_skills: ARRAY of 20-40 individual technologies/tools (e.g., ["Azure", "Azure Synapse Analytics", "Azure Data Factory", "Power BI", "Python", "SQL"])
 - Quantify only where supported by the candidate profile (no invented numbers).
 
 GROUNDING & ALIGNMENT (MANDATORY)
@@ -584,8 +584,8 @@ GROUNDING & ALIGNMENT (MANDATORY)
 
 VALIDATE BEFORE RETURN
 - profile_summary 95–125 WORDS (count words!)
-- key_skills 60–80 WORDS (count words!)
-- technical_skills 60–100 WORDS (count words!)
+- key_skills: ARRAY with 8-15 items (count array length!)
+- technical_skills: ARRAY with 20-40 items (count array length!)
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -614,8 +614,8 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
   "profile_summary": "100-125 word summary (count words carefully)",
-  "key_skills": "60-80 word prose paragraph describing core competencies and expertise areas",
-  "technical_skills": "60-100 word prose paragraph describing technical tools, platforms, and technologies",
+  "key_skills": ["Enterprise Data Strategy & Operating Model", "Data Governance & Standards (DAMA-DMBOK)", "Microsoft Data Platform (Synapse, ADF, Purview)", "... 8-15 items total"],
+  "technical_skills": ["Azure", "Azure Synapse Analytics", "Azure Data Factory", "Power BI", "Python", "SQL", "... 20-40 items total"],
   "experience": [
     {
       "employer": "Most Recent Company Name from Profile",
@@ -672,7 +672,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is 60-80 WORDS, technical_skills is 60-100 WORDS.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is ARRAY with 8-15 items, technical_skills is ARRAY with 20-40 items.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -1189,8 +1189,8 @@ NON-NEGOTIABLE ATS + STYLE
   * If source CV shows "January 2020 - December 2022" → extract: from_year: 2020, from_month: 1, to_year: 2022, to_month: 12
   * If source CV shows "2020 - 2022" (years only) → extract: from_year: 2020, from_month: null, to_year: 2022, to_month: null
   * Preserve month precision when present; use null for months when source only shows years
-- key_skills: 60-80 WORDS prose paragraph (COUNT WORDS, not items!).
-- technical_skills: 60-100 WORDS prose paragraph (COUNT WORDS, not items!).
+- key_skills: ARRAY of 8-15 skill statements/capabilities (e.g., ["Enterprise Data Strategy & Operating Model", "Data Governance & Standards (DAMA-DMBOK)", "Microsoft Data Platform (Synapse, ADF, Purview)"])
+- technical_skills: ARRAY of 20-40 individual technologies/tools (e.g., ["Azure", "Azure Synapse Analytics", "Azure Data Factory", "Power BI", "Python", "SQL"])
 - Quantify only where supported by the candidate profile (no invented numbers).
 
 GROUNDING & ALIGNMENT (MANDATORY)
@@ -1204,8 +1204,8 @@ GROUNDING & ALIGNMENT (MANDATORY)
 
 VALIDATE BEFORE RETURN
 - profile_summary 95–125 WORDS (count words!)
-- key_skills 60–80 WORDS (count words!)
-- technical_skills 60–100 WORDS (count words!)
+- key_skills: ARRAY with 8-15 items (count array length!)
+- technical_skills: ARRAY with 20-40 items (count array length!)
 - All years are numbers; dates show years only.
 - Each achievement has grounding.source_snippet and ends with a period.
 - At least one criteria_coverage item per evaluation criterion provided.
@@ -1234,8 +1234,8 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "header": { "full_name": "Name", "city_region": "City", "phone": "Phone", "email": "email", "linkedin": "url" },
   "headline": "Job Title | Specialization",
   "profile_summary": "100-125 word summary (count words carefully)",
-  "key_skills": "60-80 word prose paragraph describing core competencies and expertise areas",
-  "technical_skills": "60-100 word prose paragraph describing technical tools, platforms, and technologies",
+  "key_skills": ["Enterprise Data Strategy & Operating Model", "Data Governance & Standards (DAMA-DMBOK)", "Microsoft Data Platform (Synapse, ADF, Purview)", "... 8-15 items total"],
+  "technical_skills": ["Azure", "Azure Synapse Analytics", "Azure Data Factory", "Power BI", "Python", "SQL", "... 20-40 items total"],
   "experience": [
     {
       "employer": "Most Recent Company Name from Profile",
@@ -1292,7 +1292,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
   "optional_sections": {}
 }
 
-CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is 60-80 WORDS, technical_skills is 60-100 WORDS.`;
+CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is ARRAY with 8-15 items, technical_skills is ARRAY with 20-40 items.`;
 
     const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria, cvConfig);
     return { cv, prompts: { system: systemPrompt, user: userPrompt } };
@@ -1550,8 +1550,8 @@ RULES
 - No pronouns. SOAR bullets; end with a period.
 - **CRITICAL**: Include ALL QUANTIFIABLE METRICS from source_snippet (dollar amounts, percentages, numbers, timeframes) in achievement bullets
 - Date formatting: PRESERVE month/year format from draft CV (do NOT change from_month/to_month fields)
-- key_skills: 60–80 WORDS prose paragraph (COUNT WORDS!).
-- technical_skills: 60–100 WORDS prose paragraph (COUNT WORDS!).
+- key_skills: ARRAY of 8-15 skill statements/capabilities (maintain array format from draft)
+- technical_skills: ARRAY of 20-40 technologies/tools (maintain array format from draft)
 - Cover letter: 300–400 words; UK style; reflect final CV.
 
 SCORING RULES (CRITICAL):
@@ -1566,7 +1566,7 @@ SCORING RULES (CRITICAL):
 - Track significant changes in addedPoints with exact final quotes and target_section.
 
 VALIDATE BEFORE RETURN
-- profile_summary 95–125 WORDS (count words!); key_skills 60–80 WORDS; technical_skills 60–100 WORDS; scorecard 4–12.
+- profile_summary 95–125 WORDS (count words!); key_skills ARRAY 8-15 items; technical_skills ARRAY 20-40 items; scorecard 4–12.
 - criterion_ref values exist in evaluationCriteria.name.
 - Dates preserve month fields from draft; achievements end with a period; each includes grounding.source_snippet.
 - Cover letter 300–400 words.
