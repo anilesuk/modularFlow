@@ -338,6 +338,8 @@ export const cvDocumentSchema = z.object({
     dates: z.object({
       from_year: z.number().int().min(1970).max(2100),
       to_year: z.number().int().min(1970).max(2100).nullable().optional(),
+      from_month: z.number().int().min(1).max(12).nullable().optional(), // 1=Jan, 12=Dec; null if source CV only has years
+      to_month: z.number().int().min(1).max(12).nullable().optional(), // null if source CV only has years or role is ongoing
     }),
     overview: z.string(),
     achievements: z.array(z.object({

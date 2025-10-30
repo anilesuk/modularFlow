@@ -533,26 +533,26 @@ MANDATORY REQUIREMENTS:
     {
       "employer": "Most Recent Company Name", 
       "title": "Most Recent Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY or null if current },
-      "achievements": [5-7 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current, "from_month": M or null, "to_month": M or null },
+      "achievements": [5-7 bullets with grounding, ALL metrics from source included]
     },
     {
       "employer": "Second Company Name",
       "title": "Second Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY },
-      "achievements": [3-5 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY, "from_month": M or null, "to_month": M or null },
+      "achievements": [3-5 bullets with grounding, ALL metrics from source included]
     },
     {
       "employer": "Third Company Name",
       "title": "Third Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY },
-      "achievements": [2 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY, "from_month": M or null, "to_month": M or null },
+      "achievements": [2 bullets with grounding, ALL metrics from source included]
     },
     {
       "employer": "Fourth Company Name",
       "title": "Fourth Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY },
-      "achievements": [2 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY, "from_month": M or null, "to_month": M or null },
+      "achievements": [2 bullets with grounding, ALL metrics from source included]
     }
   ]
 }
@@ -564,7 +564,11 @@ SCAN THE ENTIRE CANDIDATE PROFILE! Don't stop at the first role you see!
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
-- Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
+- **CRITICAL**: Include ALL QUANTIFIABLE METRICS from source_snippet (dollar amounts, percentages, numbers, timeframes) in achievement bullets
+- Date formatting: MATCH THE SOURCE CV FORMAT
+  * If source CV shows "January 2020 - December 2022" → extract: from_year: 2020, from_month: 1, to_year: 2022, to_month: 12
+  * If source CV shows "2020 - 2022" (years only) → extract: from_year: 2020, from_month: null, to_year: 2022, to_month: null
+  * Preserve month precision when present; use null for months when source only shows years
 - key_skills: 60-80 WORDS prose paragraph (COUNT WORDS, not items!).
 - technical_skills: 60-100 WORDS prose paragraph (COUNT WORDS, not items!).
 - Quantify only where supported by the candidate profile (no invented numbers).
@@ -617,7 +621,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       "employer": "Most Recent Company Name from Profile",
       "location": "City, Country from Profile",
       "title": "Most Recent Job Title from Profile",
-      "dates": { "from_year": YYYY, "to_year": YYYY or null if current role },
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current role, "from_month": M or null, "to_month": M or null },
       "overview": "Brief scope of most recent role",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -1149,26 +1153,26 @@ MANDATORY REQUIREMENTS:
     {
       "employer": "Most Recent Company Name", 
       "title": "Most Recent Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY or null if current },
-      "achievements": [5-7 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current, "from_month": M or null, "to_month": M or null },
+      "achievements": [5-7 bullets with grounding, ALL metrics from source included]
     },
     {
       "employer": "Second Company Name",
       "title": "Second Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY },
-      "achievements": [3-5 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY, "from_month": M or null, "to_month": M or null },
+      "achievements": [3-5 bullets with grounding, ALL metrics from source included]
     },
     {
       "employer": "Third Company Name",
       "title": "Third Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY },
-      "achievements": [2 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY, "from_month": M or null, "to_month": M or null },
+      "achievements": [2 bullets with grounding, ALL metrics from source included]
     },
     {
       "employer": "Fourth Company Name",
       "title": "Fourth Job Title",
-      "dates": { "from_year": YYYY, "to_year": YYYY },
-      "achievements": [2 bullets with grounding]
+      "dates": { "from_year": YYYY, "to_year": YYYY, "from_month": M or null, "to_month": M or null },
+      "achievements": [2 bullets with grounding, ALL metrics from source included]
     }
   ]
 }
@@ -1180,7 +1184,11 @@ SCAN THE ENTIRE CANDIDATE PROFILE! Don't stop at the first role you see!
 NON-NEGOTIABLE ATS + STYLE
 - No pronouns (I/me/my/we/us/he/she).
 - Achievements use SOAR in one concise bullet; begin with a past-tense action verb; end with a period.
-- Dates are YEARS ONLY (e.g., "2019-2024"); no months anywhere.
+- **CRITICAL**: Include ALL QUANTIFIABLE METRICS from source_snippet (dollar amounts, percentages, numbers, timeframes) in achievement bullets
+- Date formatting: MATCH THE SOURCE CV FORMAT
+  * If source CV shows "January 2020 - December 2022" → extract: from_year: 2020, from_month: 1, to_year: 2022, to_month: 12
+  * If source CV shows "2020 - 2022" (years only) → extract: from_year: 2020, from_month: null, to_year: 2022, to_month: null
+  * Preserve month precision when present; use null for months when source only shows years
 - key_skills: 60-80 WORDS prose paragraph (COUNT WORDS, not items!).
 - technical_skills: 60-100 WORDS prose paragraph (COUNT WORDS, not items!).
 - Quantify only where supported by the candidate profile (no invented numbers).
@@ -1233,7 +1241,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
       "employer": "Most Recent Company Name from Profile",
       "location": "City, Country from Profile",
       "title": "Most Recent Job Title from Profile",
-      "dates": { "from_year": YYYY, "to_year": YYYY or null if current role },
+      "dates": { "from_year": YYYY, "to_year": YYYY or null if current role, "from_month": M or null, "to_month": M or null },
       "overview": "Brief scope of most recent role",
       "achievements": [
         { "bullet": "...", "grounding": {"source_snippet": "...", "confidence": "high"}, "situation": "...", "obstacle": "...", "action": "...", "result": "..." },
@@ -1538,17 +1546,20 @@ The summary should end with a period, not with a word count note.
 RULES
 - Apply ALL recommendations without inventing facts.
 - Preserve or update grounding for any edited achievement (keep grounding.source_snippet; update if the sentence changed).
-- No pronouns. Years only. SOAR bullets; end with a period.
-- key_skills: 8–16 items (strict; NEVER exceed 16. COUNT CAREFULLY).
+- No pronouns. SOAR bullets; end with a period.
+- **CRITICAL**: Include ALL QUANTIFIABLE METRICS from source_snippet (dollar amounts, percentages, numbers, timeframes) in achievement bullets
+- Date formatting: PRESERVE month/year format from draft CV (do NOT change from_month/to_month fields)
+- key_skills: 60–80 WORDS prose paragraph (COUNT WORDS!).
+- technical_skills: 60–100 WORDS prose paragraph (COUNT WORDS!).
 - Cover letter: 300–400 words; UK style; reflect final CV.
 - Rescore against the evaluation criteria and include overall_score_1_to_10 (weighted average).
 - Each scorecard item MUST include criterion_ref and reason_for_score.
 - Track significant changes in addedPoints with exact final quotes and target_section.
 
 VALIDATE BEFORE RETURN
-- profile_summary 100–125 WORDS (count words!); key_skills 8–16; scorecard 4–12.
+- profile_summary 95–125 WORDS (count words!); key_skills 60–80 WORDS; technical_skills 60–100 WORDS; scorecard 4–12.
 - criterion_ref values exist in evaluationCriteria.name.
-- Dates are years only; achievements end with a period; each includes grounding.source_snippet.
+- Dates preserve month fields from draft; achievements end with a period; each includes grounding.source_snippet.
 - Cover letter 300–400 words.
 - Output JSON only.
 

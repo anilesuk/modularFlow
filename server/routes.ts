@@ -5,6 +5,7 @@ import { isAuthenticated } from "./replitAuth";
 import { scraper } from "./scraper";
 import { aiService } from "./ai";
 import { docGen } from "./docGen";
+import { pdfGenService } from "./pdfGen";
 import { objectStorage } from "./objectStorage";
 import { objectAcl } from "./objectAcl";
 import { insertCandidateSchema, insertRunSchema } from "@shared/schema";
@@ -382,15 +383,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         switch (documentType) {
           case "cv":
             binaryData = artifact.cvBinary;
-            filename = "CV.docx";
+            filename = "CV.pdf";
             break;
           case "cover-letter":
             binaryData = artifact.coverLetterBinary;
-            filename = "Cover_Letter.docx";
+            filename = "Cover_Letter.pdf";
             break;
           case "added-points":
             binaryData = artifact.enhancementBinary;
-            filename = "Enhancement_Report.docx";
+            filename = "Enhancement_Report.pdf";
             break;
           default:
             return res.status(400).json({ error: "Invalid document type" });
@@ -401,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Serve raw binary data
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Length', binaryData.length);
         res.send(binaryData);
@@ -584,9 +585,9 @@ ${cvContent}
       await storage.updateRunStatus(runId, "RENDERING");
       
       const [cvBuffer, coverLetterBuffer, enhancementBuffer] = await Promise.all([
-        docGen.generateCvDocx(optimizedResult.cvFinal),
-        docGen.generateCoverLetterDocx(optimizedResult.coverLetterFinal),
-        docGen.generateEnhancementReportDocx(optimizedResult.addedPoints),
+        pdfGenService.generateCvPdf(optimizedResult.cvFinal),
+        pdfGenService.generateCoverLetterPdf(optimizedResult.coverLetterFinal),
+        pdfGenService.generateEnhancementReportPdf(optimizedResult.addedPoints),
       ]);
 
       // Try object storage first, fall back to database storage if it fails
@@ -604,17 +605,17 @@ ${cvContent}
           objectStorage.upload({
             key: cvPath,
             body: cvBuffer,
-            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            contentType: "application/pdf",
           }),
           objectStorage.upload({
             key: coverLetterPath,
             body: coverLetterBuffer,
-            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            contentType: "application/pdf",
           }),
           objectStorage.upload({
             key: enhancementPath,
             body: enhancementBuffer,
-            contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            contentType: "application/pdf",
           }),
         ]);
         console.log(`Documents uploaded to object storage for run ${runId}`);

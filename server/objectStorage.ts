@@ -95,7 +95,7 @@ export class ObjectStorageService {
    */
   generateStoragePath(userId: string, runId: string, documentType: string): string {
     const timestamp = Date.now();
-    return `.private/${userId}/${runId}/${documentType}_${timestamp}.docx`;
+    return `.private/${userId}/${runId}/${documentType}_${timestamp}.pdf`;
   }
 }
 
