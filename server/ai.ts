@@ -486,7 +486,8 @@ GOAL
 
 RULES
 - Use the provided evaluationCriteria (4–7 items; weights sum to 100).
-- Score each criterion; compute weighted average and set overall_score_1_to_10 (round to 1 decimal).
+- Score each criterion with WHOLE NUMBERS ONLY (1-10, no decimals like 8.5).
+- Compute weighted average for overall_score_1_to_10 (this can have 1 decimal place).
 - Each scorecard item MUST include criterion_ref matching an evaluation criterion name.
 - Include reason_for_score explaining each rating.
 - Output 3–8 recommendations that directly raise the score against criteria; map each to a JSON path.
@@ -521,8 +522,9 @@ REQUIRED JSON STRUCTURE:
         "area": "Technical Skills",
         "jd_expectation": "What job requires",
         "cv_strength": "What CV demonstrates",
-        "score_1_to_10": 8.5,
-        "criterion_ref": "Technical Skills"
+        "score_1_to_10": 8,
+        "criterion_ref": "Technical Skills",
+        "reason_for_score": "Explanation of score"
       }
     ],
     "overall_score_1_to_10": 8.2
@@ -553,6 +555,17 @@ CRITICAL:
     });
 
     const result = JSON.parse(response.choices[0].message.content || "{}");
+    
+    // Auto-repair: Round decimal scores to integers
+    if (result.scorecard?.scorecard && Array.isArray(result.scorecard.scorecard)) {
+      result.scorecard.scorecard = result.scorecard.scorecard.map((item: any) => {
+        if (typeof item.score_1_to_10 === 'number' && !Number.isInteger(item.score_1_to_10)) {
+          console.log(`Auto-repair: Rounding score ${item.score_1_to_10} to ${Math.round(item.score_1_to_10)}`);
+          return { ...item, score_1_to_10: Math.round(item.score_1_to_10) };
+        }
+        return item;
+      });
+    }
     
     try {
       const scorecard = scorecardSchema.parse(result.scorecard);
