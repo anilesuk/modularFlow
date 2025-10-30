@@ -1,8 +1,36 @@
 import puppeteer from "puppeteer";
 import type { CvDocument, CoverLetter, TraceChange } from "@shared/schema";
 import { execSync } from "child_process";
+import { PDFDocument } from "pdf-lib";
 
 export class PDFGenerationService {
+  /**
+   * Sanitize PDF metadata to remove HeadlessChrome signatures that trigger antivirus
+   */
+  private async sanitizePdf(
+    pdfBuffer: Buffer,
+    metadata: {
+      title: string;
+      author?: string;
+      subject?: string;
+    }
+  ): Promise<Buffer> {
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    
+    // Overwrite default HeadlessChrome metadata with clean values
+    pdfDoc.setTitle(metadata.title);
+    pdfDoc.setSubject(metadata.subject || "Professional Document");
+    pdfDoc.setProducer("CV Tailoring Pro");
+    pdfDoc.setCreator("CV Generator Service v1.0");
+    
+    if (metadata.author) {
+      pdfDoc.setAuthor(metadata.author);
+    }
+    
+    // Save and return the sanitized PDF
+    const sanitizedBytes = await pdfDoc.save();
+    return Buffer.from(sanitizedBytes);
+  }
   /**
    * Get the Chromium executable path for Puppeteer
    */
@@ -38,9 +66,9 @@ export class PDFGenerationService {
   ): Promise<Buffer> {
     const chromiumPath = this.getChromiumPath();
     
-    // Use optimized browser launch options
+    // Use optimized browser launch options to minimize AV false positives
     const browser = await puppeteer.launch({
-      headless: true, // Use headless mode for cleaner PDFs
+      headless: true,
       executablePath: chromiumPath || undefined,
       args: [
         "--no-sandbox",
@@ -50,6 +78,9 @@ export class PDFGenerationService {
         "--no-first-run",
         "--no-zygote",
         "--disable-gpu",
+        "--disable-extensions",
+        "--hide-scrollbars",
+        "--mute-audio",
       ],
     });
 
@@ -63,8 +94,8 @@ export class PDFGenerationService {
       await page.setContent(html, { waitUntil: "networkidle0" });
       await page.emulateMediaType("print");
       
-      // Generate PDF with metadata and clean options
-      const pdfBuffer = await page.pdf({
+      // Generate PDF with all anti-AV options enabled
+      let pdfBuffer = await page.pdf({
         format: "A4",
         margin: options.margins || {
           top: "2cm",
@@ -75,10 +106,19 @@ export class PDFGenerationService {
         printBackground: true,
         preferCSSPageSize: true,
         displayHeaderFooter: false,
-        tagged: false, // Disable PDF tagging to simplify structure
+        tagged: false,       // Disable PDF tagging to simplify structure
+        outline: false,      // Disable document outline
+        scale: 1,            // Explicit scale factor
       });
 
-      return Buffer.from(pdfBuffer);
+      // Sanitize metadata to remove HeadlessChrome signatures
+      const sanitizedBuffer = await this.sanitizePdf(Buffer.from(pdfBuffer), {
+        title: options.title,
+        author: options.author,
+        subject: options.subject,
+      });
+
+      return sanitizedBuffer;
     } finally {
       await browser.close();
     }
