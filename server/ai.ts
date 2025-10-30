@@ -13,8 +13,8 @@ const openai = new OpenAI({
 /**
  * Auto-repair common validation failures in AI output
  */
-function autoRepairAIOutput(result: any): any {
-  const config = getCvConfig();
+async function autoRepairAIOutput(result: any, candidateId?: string): Promise<any> {
+  const config = await getCvConfig(candidateId);
   
   // Handle both nested (result.cv) and flat CV objects
   const cv = result.cv || result;
@@ -267,7 +267,7 @@ RULES:
     });
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = autoRepairAIOutput(result);
+    result = await autoRepairAIOutput(result);
     
     try {
       const jdSpec = jdSpecSchema.parse(result.jdSpec);
@@ -320,7 +320,8 @@ RULES:
   async generateCV(
     candidateProfile: string,
     jdSpec: JdSpec,
-    evaluationCriteria: EvaluationCriteria
+    evaluationCriteria: EvaluationCriteria,
+    candidateId?: string
   ): Promise<CvDocument> {
     // Extract expected role count BEFORE sending to AI (authoritative baseline)
     const expectedRoleCount = this.extractExpectedRoleCount(candidateProfile);
@@ -573,7 +574,7 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
     });
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = autoRepairAIOutput(result);
+    result = await autoRepairAIOutput(result, candidateId);
     
     try {
       const cv = cvDocumentSchema.parse(result);
@@ -938,7 +939,8 @@ CRITICAL:
   async generateCVWithPrompts(
     candidateProfile: string,
     jdSpec: JdSpec,
-    evaluationCriteria: EvaluationCriteria
+    evaluationCriteria: EvaluationCriteria,
+    candidateId?: string
   ): Promise<{ cv: CvDocument; prompts: { system: string; user: string } }> {
     // Build prompts (identical to generateCV)
     const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
@@ -1177,7 +1179,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
 
 CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is 60-80 WORDS, technical_skills is 60-100 WORDS.`;
 
-    const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria);
+    const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria, candidateId);
     return { cv, prompts: { system: systemPrompt, user: userPrompt } };
   }
 
@@ -1337,7 +1339,8 @@ CRITICAL:
    */
   async generateDraft(
     candidateProfile: string,
-    jobPosting: JobPostingPayload
+    jobPosting: JobPostingPayload,
+    candidateId?: string
   ): Promise<{
     jdSpec: JdSpec;
     evaluationCriteria: EvaluationCriteria;
@@ -1363,7 +1366,7 @@ CRITICAL:
     
     // Phase 1A: Generate CV
     console.log("Phase 1A: Generating CV...");
-    const { cv: cvDraft, prompts: phase1aPrompts } = await this.generateCVWithPrompts(candidateProfile, jdSpec, evaluationCriteria);
+    const { cv: cvDraft, prompts: phase1aPrompts } = await this.generateCVWithPrompts(candidateProfile, jdSpec, evaluationCriteria, candidateId);
     prompts.phase1a_cv = phase1aPrompts;
     
     // Phase 1B: Generate cover letter
@@ -1403,7 +1406,8 @@ CRITICAL:
     cvDraft: CvDocument,
     coverLetterDraft: CoverLetter,
     jobPosting: JobPostingPayload,
-    recommendations: Recommendation[]
+    recommendations: Recommendation[],
+    candidateId?: string
   ): Promise<{
     cvFinal: CvDocument;
     coverLetterFinal: CoverLetter;
@@ -1487,7 +1491,7 @@ Return refined JSON with addedPoints tracking changes. Calculate overall_score_1
     });
 
     let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = autoRepairAIOutput(result);
+    result = await autoRepairAIOutput(result, candidateId);
     
     // Validate AI output against schemas before returning
     try {

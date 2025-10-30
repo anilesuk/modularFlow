@@ -486,7 +486,7 @@ ${cvContent}
     
     console.log(`Sending to AI: candidateProfile length = ${candidateProfile.length} chars, ~${Math.ceil(candidateProfile.length / 4)} tokens`);
     
-    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any);
+    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any, candidate.id);
 
     console.log("Saving draft to database...");
     console.log("Draft data structure:", {
@@ -522,7 +522,8 @@ ${cvContent}
       draftResult.cvDraft,
       draftResult.coverLetterDraft,
       jobPosting.payload as any,
-      draftResult.recommendations
+      draftResult.recommendations,
+      candidate.id
     );
 
     await storage.createFinal({
