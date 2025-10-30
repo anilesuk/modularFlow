@@ -476,17 +476,29 @@ async function processJobApplication(
       await storage.updateRunStatus(runId, "SCRAPING");
       const scrapedJob = await scraper.scrapeJobPosting(jobPostingUrl);
       
-      // Create payload with scraped job posting data
+      // Create payload with properly structured objects (not raw strings)
       const payload = {
-        company: scrapedJob.company,
-        role: scrapedJob.role,
-        location: scrapedJob.location,
-        description: scrapedJob.description,
-        requirements: scrapedJob.requirements || [],
-        responsibilities: scrapedJob.responsibilities || [],
-        benefits: scrapedJob.benefits || [],
-        salary: scrapedJob.salary || null,
-        remote: scrapedJob.remote || null,
+        company: {
+          name: scrapedJob.company,
+          website: null,
+          industry: null,
+          hq: null,
+        },
+        role: {
+          title: scrapedJob.role,
+          location: scrapedJob.location,
+          seniority: null,
+          employment_type: null,
+        },
+        description: {
+          clean_text: scrapedJob.description,
+          html: scrapedJob.rawHtml,
+        },
+        requirements: [],
+        responsibilities: [],
+        benefits: [],
+        salary: null,
+        remote: null,
         url: jobPostingUrl,
       };
       
