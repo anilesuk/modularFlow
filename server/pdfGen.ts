@@ -289,7 +289,6 @@ export class PDFGenerationService {
   ${cv.headline ? `<div class="headline">${cv.headline}</div>` : ""}
   
   <div class="section">
-    <div class="section-title">Professional Summary</div>
     <div class="prose-paragraph">${cv.profile_summary}</div>
   </div>
   

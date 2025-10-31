@@ -509,6 +509,15 @@ NON-NEGOTIABLE ATS + STYLE
 - technical_skills: ARRAY of 20-40 individual technologies/tools (e.g., ["Azure", "Azure Synapse Analytics", "Azure Data Factory", "Power BI", "Python", "SQL"])
 - Quantify only where supported by the candidate profile (no invented numbers).
 
+HEADLINE GENERATION RULES (MANDATORY):
+- The headline MUST align with BOTH the job description role AND the candidate's actual experience
+- Format: "[Seniority Level] [Role/Function] | [Key Specialization from JD + CV overlap]"
+- Seniority level must match candidate's actual career stage (e.g., Senior Director, Director, Manager)
+- Role/function must incorporate JD target role title or closely related terms from JD
+- Specialization must reflect JD key requirements AND candidate's proven expertise (grounded in CV)
+- Example for Chief Data Officer JD + 28 years data experience: "Senior Director – Global Delivery & Customer Success | Data & Analytics Expert"
+- Include headline_signals in jd_alignment showing which JD terms were used in the headline
+
 GROUNDING & ALIGNMENT (MANDATORY)
 - Every achievement MUST include a "grounding" object with "source_snippet" taken verbatim from the candidate profile.
 - Include "jd_alignment" at each experience entry: { criteria_hit: string[], jd_signals_used: string[] }
@@ -1130,6 +1139,15 @@ NON-NEGOTIABLE ATS + STYLE
 - key_skills: ARRAY of 8-15 skill statements/capabilities (e.g., ["Enterprise Data Strategy & Operating Model", "Data Governance & Standards (DAMA-DMBOK)", "Microsoft Data Platform (Synapse, ADF, Purview)"])
 - technical_skills: ARRAY of 20-40 individual technologies/tools (e.g., ["Azure", "Azure Synapse Analytics", "Azure Data Factory", "Power BI", "Python", "SQL"])
 - Quantify only where supported by the candidate profile (no invented numbers).
+
+HEADLINE GENERATION RULES (MANDATORY):
+- The headline MUST align with BOTH the job description role AND the candidate's actual experience
+- Format: "[Seniority Level] [Role/Function] | [Key Specialization from JD + CV overlap]"
+- Seniority level must match candidate's actual career stage (e.g., Senior Director, Director, Manager)
+- Role/function must incorporate JD target role title or closely related terms from JD
+- Specialization must reflect JD key requirements AND candidate's proven expertise (grounded in CV)
+- Example for Chief Data Officer JD + 28 years data experience: "Senior Director – Global Delivery & Customer Success | Data & Analytics Expert"
+- Include headline_signals in jd_alignment showing which JD terms were used in the headline
 
 GROUNDING & ALIGNMENT (MANDATORY)
 - Every achievement MUST include a "grounding" object with "source_snippet" taken verbatim from the candidate profile.
