@@ -134,7 +134,7 @@ async function autoRepairAIOutput(result: any, cvConfig: CvGenerationConfig): Pr
 
 export class AIService {
   /**
-   * Phase 0: Analyze job posting to extract structured JD spec and evaluation criteria
+   * Phase 0: Analyze raw job posting text to extract structured JD spec and evaluation criteria
    */
   async analyzeJobPosting(
     jobPosting: JobPostingPayload
@@ -143,33 +143,50 @@ export class AIService {
     evaluationCriteria: EvaluationCriteria;
     prompts: { system: string; user: string };
   }> {
+    // Backward compatibility: Handle old payload structure
+    // Old: { company: {name}, role: {title}, description: {clean_text} }
+    // New: { source_url, raw_text, raw_html }
+    let rawText: string;
+    
+    if (jobPosting.raw_text) {
+      // New structure
+      rawText = jobPosting.raw_text;
+    } else {
+      // Legacy structure - construct raw text from old fields
+      const legacyPayload = jobPosting as any;
+      const companyInfo = legacyPayload.company?.name ? `Company: ${legacyPayload.company.name}\n` : '';
+      const roleInfo = legacyPayload.role?.title ? `Role: ${legacyPayload.role.title}\n` : '';
+      const locationInfo = legacyPayload.role?.location ? `Location: ${legacyPayload.role.location}\n` : '';
+      const descriptionText = legacyPayload.description?.clean_text || '';
+      
+      rawText = `${companyInfo}${roleInfo}${locationInfo}\n${descriptionText}`;
+      console.log('⚠️ Using legacy payload structure - constructed raw text from old fields');
+    }
+
     const systemPrompt = `You are a job description analysis expert. Return ONE valid JSON object only (no prose, no markdown).
 
 GOAL
-1) Extract a comprehensive JD specification from the posting with FULL DETAIL (no condensing).
+1) Extract a comprehensive JD specification from the RAW job posting text with FULL DETAIL (no condensing).
 2) Derive EXACTLY 7 weighted evaluation criteria that are specific to THIS JD, using concrete phrases/signals from the text. Weights must sum to exactly 100.
 
-CRITICAL RULES - READ THE ACTUAL JOB DESCRIPTION
-- You MUST extract the ACTUAL role title, company name, and location from the job description provided
-- DO NOT use placeholder or example values - extract the REAL information from the text
+CRITICAL RULES - EXTRACT FROM RAW TEXT
+- You MUST carefully read the raw job posting text and extract the ACTUAL company name, role title, location, and all other details
+- DO NOT use placeholder or example values - extract REAL information from the raw text provided
 - Extract EXACTLY 7 criteria (not 4-7, not 6, EXACTLY 7); weights must sum to exactly 100.
-- Criteria must reference concrete JD signals (verbatim phrases/terms).
+- Criteria must reference concrete JD signals (verbatim phrases/terms from the raw text).
 - For responsibilities and experience sections: DO NOT CONDENSE - include ALL details from the JD.
 - Use ONLY the allowed keys in scope_indicators: team_size, budget, regions, stakeholder_levels.
 - Do NOT add unknown or extra fields to any object.
 - Output valid JSON only.`;
 
-    const userPrompt = `Analyze the following job posting and produce the JSON requested in the system prompt.
+    const userPrompt = `Analyze the following raw job posting text and produce the JSON requested in the system prompt.
 
 ⚠️ CRITICAL: The example values below (ACME Corporation, Product Manager, etc.) are GENERIC PLACEHOLDERS to show JSON structure ONLY.
-YOU MUST extract the ACTUAL company name, job title, location, and all other details from the real job description provided below.
-DO NOT copy "ACME Corporation" or "Product Manager" - read the actual job posting text and extract the real information.
+YOU MUST extract the ACTUAL company name, job title, location, and all other details from the raw job posting text provided below.
+DO NOT copy "ACME Corporation" or "Product Manager" - read the actual raw job posting text and extract the real information.
 
-JOB POSTING TO ANALYZE:
-Company: ${jobPosting.company?.name || "Not specified"}
-Role: ${jobPosting.role.title}
-Location: ${jobPosting.role.location || "Not specified"}
-Description: ${jobPosting.description.clean_text}
+RAW JOB POSTING TEXT TO ANALYZE:
+${rawText}
 
 OUTPUT SHAPE (DO NOT copy the example values - extract REAL data from above):
 {

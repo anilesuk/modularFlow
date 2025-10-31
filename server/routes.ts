@@ -434,37 +434,20 @@ async function processJobApplication(
     let jobPosting: any;
 
     if (manualJd) {
-      // STAGE 1: Use manual JD (skip scraping)
+      // STAGE 1: Use manual JD (skip scraping) - store as raw text
       await storage.updateRunStatus(runId, "ANALYZING");
       
-      // Parse manual JD to extract basic info (simple heuristic)
-      const lines = manualJd.split('\n').filter(l => l.trim());
-      const firstLine = lines[0] || "Unknown Role";
+      // Limit manual JD to 15,000 characters to prevent AI prompt overflow
+      const limitedJd = manualJd.substring(0, 15000);
+      if (manualJd.length > 15000) {
+        console.log(`Manual JD truncated from ${manualJd.length} to 15,000 characters`);
+      }
       
-      // Create payload with job posting data (matching scraped structure)
+      // Store manual JD as raw text - AI will extract structured data
       const payload = {
-        company: {
-          name: "From Manual Input",
-          website: null,
-          industry: null,
-          hq: null,
-        },
-        role: {
-          title: firstLine.substring(0, 100), // Use first line as role
-          location: "Not Specified",
-          seniority: null,
-          employment_type: null,
-        },
-        description: {
-          clean_text: manualJd,
-          html: null,
-        },
-        requirements: [],
-        responsibilities: [],
-        benefits: [],
-        salary: null,
-        remote: null,
-        url: "manual-input",
+        source_url: "manual-input",
+        raw_text: limitedJd,
+        raw_html: undefined, // No HTML for manual input
       };
       
       jobPosting = await storage.createJobPosting({
@@ -472,34 +455,15 @@ async function processJobApplication(
         payload: payload as any,
       });
     } else if (jobPostingUrl) {
-      // STAGE 1: Scrape job posting from URL
+      // STAGE 1: Scrape job posting from URL - store as raw text
       await storage.updateRunStatus(runId, "SCRAPING");
       const scrapedJob = await scraper.scrapeJobPosting(jobPostingUrl);
       
-      // Create payload with properly structured objects (not raw strings)
+      // Store scraped raw text - AI will extract structured data
       const payload = {
-        company: {
-          name: scrapedJob.company,
-          website: null,
-          industry: null,
-          hq: null,
-        },
-        role: {
-          title: scrapedJob.role,
-          location: scrapedJob.location,
-          seniority: null,
-          employment_type: null,
-        },
-        description: {
-          clean_text: scrapedJob.description,
-          html: scrapedJob.rawHtml,
-        },
-        requirements: [],
-        responsibilities: [],
-        benefits: [],
-        salary: null,
-        remote: null,
-        url: jobPostingUrl,
+        source_url: scrapedJob.url,
+        raw_text: scrapedJob.rawText,
+        raw_html: scrapedJob.rawHtml,
       };
       
       jobPosting = await storage.createJobPosting({

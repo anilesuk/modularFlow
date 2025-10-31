@@ -15,13 +15,12 @@ export class ScraperService {
     }
   }
   /**
-   * Scrape job posting details from a URL
+   * Scrape raw text content from a job posting URL
+   * No parsing or structuring - just extract the raw text for AI to process
    */
   async scrapeJobPosting(url: string): Promise<{
-    company: string;
-    role: string;
-    location: string | null;
-    description: string;
+    rawText: string;
+    url: string;
     rawHtml: string;
   }> {
     const launchOptions: any = {
@@ -46,87 +45,30 @@ export class ScraperService {
       const page = await browser.newPage();
       await page.goto(url, { waitUntil: "networkidle0", timeout: 30000 });
 
-      // Extract text content and HTML using string evaluation to avoid transpilation issues
+      // Extract raw text and HTML - let the AI do the parsing
       const data = await page.evaluate(`(function() {
-        function getTextBySelectors(selectors) {
-          for (var i = 0; i < selectors.length; i++) {
-            var element = document.querySelector(selectors[i]);
-            if (element && element.textContent) {
-              return element.textContent.trim();
-            }
-          }
-          return "";
-        }
-
-        var company = getTextBySelectors([
-          '[class*="company"]',
-          '[class*="employer"]',
-          '[data-testid*="company"]',
-          'h1 + div',
-          'meta[property="og:site_name"]'
-        ]);
-        
-        if (!company) {
-          var metaCompany = document.querySelector('meta[property="og:site_name"]');
-          if (metaCompany) {
-            company = metaCompany.getAttribute('content') || "";
-          }
-        }
-
-        var role = getTextBySelectors([
-          'h1',
-          '[class*="title"]',
-          '[class*="job-title"]',
-          '[data-testid*="title"]',
-          'meta[property="og:title"]'
-        ]);
-        
-        if (!role) {
-          var metaRole = document.querySelector('meta[property="og:title"]');
-          if (metaRole) {
-            role = metaRole.getAttribute('content') || "";
-          }
-        }
-
-        var location = getTextBySelectors([
-          '[class*="location"]',
-          '[class*="city"]',
-          '[data-testid*="location"]'
-        ]);
-
-        var description = getTextBySelectors([
-          '[class*="description"]',
-          '[class*="job-description"]',
-          '[class*="content"]',
-          'main',
-          'article',
-          'body'
-        ]);
-        
-        if (!description && document.body.textContent) {
-          description = document.body.textContent;
-        }
+        var bodyText = document.body.textContent || "";
+        var htmlContent = document.documentElement.innerHTML;
 
         return {
-          company: company || "",
-          role: role || "",
-          location: location || "",
-          description: description ? description.substring(0, 10000) : "",
-          rawHtml: document.documentElement.innerHTML
+          rawText: bodyText,
+          rawHtml: htmlContent
         };
       })()`);
 
-      // Clean up the extracted data
-      const cleanText = (text: string) => text.replace(/\s+/g, " ").trim();
-      
       // Type assertion for evaluated data
-      const scrapedData = data as { company: string; role: string; location: string; description: string; rawHtml: string };
+      const scrapedData = data as { rawText: string; rawHtml: string };
+
+      // Clean up excessive whitespace while preserving structure
+      const cleanText = (text: string) => text.replace(/\s+/g, " ").trim();
+
+      // Limit to 15,000 characters to stay within AI context limits
+      // This is sufficient for most job postings while preventing overflow
+      const limitedText = cleanText(scrapedData.rawText).substring(0, 15000);
 
       return {
-        company: cleanText(scrapedData.company) || "Unknown Company",
-        role: cleanText(scrapedData.role) || "Unknown Role",
-        location: scrapedData.location ? cleanText(scrapedData.location) : null,
-        description: cleanText(scrapedData.description),
+        rawText: limitedText,
+        url: url,
         rawHtml: scrapedData.rawHtml,
       };
     } finally {

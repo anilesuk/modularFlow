@@ -19,7 +19,8 @@ export default function Results() {
   const { data: runData, isLoading: runLoading } = useQuery<Run & { 
     draft?: Draft; 
     final?: Final; 
-    artifact?: Artifact 
+    artifact?: Artifact;
+    jobPosting?: { runId: string; payload: any; createdAt: string };
   }>({
     queryKey: ["/api/runs", runId],
   });
@@ -28,6 +29,7 @@ export default function Results() {
   const draft = runData?.draft;
   const final = runData?.final;
   const artifact = runData?.artifact;
+  const jobPosting = runData?.jobPosting;
 
   const [downloading, setDownloading] = useState<string | null>(null);
 
@@ -560,6 +562,28 @@ export default function Results() {
                 )}
 
                 {/* Phase 0: Job Analysis */}
+                {/* Raw Scraped Text - FIRST in trace */}
+                {jobPosting?.payload && (
+                  <AccordionItem value="raw-scraped-text" className="border rounded-lg px-4 bg-green-50 dark:bg-green-950/20">
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="font-semibold">📄 Raw Job Posting Text (Scraped)</span>
+                        <Badge variant="outline">Source Data</Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-2 mt-2">
+                        <div className="text-xs text-muted-foreground mb-2">
+                          <strong>Source:</strong> {jobPosting.payload.source_url || 'Unknown'}
+                        </div>
+                        <pre className="text-xs bg-muted p-4 rounded-md overflow-auto max-h-96 whitespace-pre-wrap">
+                          {jobPosting.payload.raw_text || 'No raw text available'}
+                        </pre>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+
                 {/* Prompts: Phase 0 */}
                 {draft?.promptsJsonb && (draft.promptsJsonb as any).phase0_jd_analysis && (
                   <AccordionItem value="prompt-phase0" className="border rounded-lg px-4 bg-blue-50 dark:bg-blue-950/20">

@@ -190,51 +190,12 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 // Zod Schemas for JSON payloads
 // ============================================
 
-// JobPosting schema
+// JobPosting schema - simplified to store raw scraped text
+// The AI will extract structured JD spec from this raw text
 export const jobPostingSchema = z.object({
-  source_url: z.string().url(),
-  company: z.object({
-    name: z.string().optional(),
-    website: z.string().optional(),
-    industry: z.string().optional(),
-    hq: z.string().optional(),
-  }).optional(),
-  role: z.object({
-    title: z.string(),
-    location: z.string().optional(),
-    seniority: z.string().optional(),
-    employment_type: z.string().optional(),
-  }),
-  description: z.object({
-    raw_html: z.string().optional(),
-    clean_text: z.string(),
-    sections: z.object({
-      about_company: z.string().optional(),
-      responsibilities: z.string().optional(),
-      requirements_must: z.array(z.string()).optional(),
-      requirements_nice: z.array(z.string()).optional(),
-      benefits: z.array(z.string()).optional(),
-    }).optional(),
-    keywords: z.object({
-      skills: z.array(z.string()).optional(),
-      tools: z.array(z.string()).optional(),
-      domains: z.array(z.string()).optional(),
-      certs: z.array(z.string()).optional(),
-    }).optional(),
-  }),
-  compensation: z.object({
-    currency: z.string().optional(),
-    range: z.object({
-      min: z.number().nullable().optional(),
-      max: z.number().nullable().optional(),
-    }).optional(),
-    bonus: z.string().optional(),
-    other: z.string().optional(),
-  }).optional(),
-  posting_dates: z.object({
-    posted: z.string().optional(),
-    closing: z.string().optional(),
-  }).optional(),
+  source_url: z.string(), // URL or "manual-input"
+  raw_text: z.string(), // Raw text from scraper or user input
+  raw_html: z.string().optional(), // Optional HTML for reference
 });
 
 export type JobPostingPayload = z.infer<typeof jobPostingSchema>;
