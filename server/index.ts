@@ -1,7 +1,9 @@
+import "./env";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupAuth } from "./replitAuth";
+import { setupAuth } from "./clerkAuth";
 import { setupVite, serveStatic, log } from "./vite";
+import { warmModelCatalog } from "./ai";
 
 const app = express();
 
@@ -50,6 +52,14 @@ app.use((req, res, next) => {
 (async () => {
   // Setup authentication first
   await setupAuth(app);
+
+  // Warm model catalog once at startup and keep it in memory for fast UI model selection.
+  try {
+    await warmModelCatalog();
+    log("LLM model catalog warmed", "ai");
+  } catch (error) {
+    log(`LLM model catalog warm failed: ${String(error)}`, "ai");
+  }
   
   const server = await registerRoutes(app);
 

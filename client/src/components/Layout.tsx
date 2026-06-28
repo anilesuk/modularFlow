@@ -1,4 +1,5 @@
 import { FileText, Home, Plus, User, LogOut, Shield } from "lucide-react";
+import { useClerk } from "@clerk/clerk-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +12,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const { user } = useAuth();
+  const { signOut } = useClerk();
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: Home },
@@ -84,7 +86,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => window.location.href = '/api/logout'}
+                  onClick={() => void signOut()}
                   data-testid="button-logout"
                 >
                   <LogOut className="h-4 w-4" />

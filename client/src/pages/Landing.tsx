@@ -1,8 +1,11 @@
 import { Shield, Lock, CheckCircle2, FileText, Sparkles, ArrowRight } from "lucide-react";
+import { useClerk } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export default function Landing() {
+  const { openSignIn } = useClerk();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -14,7 +17,7 @@ export default function Landing() {
           </div>
           <Button
             data-testid="button-login"
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => openSignIn()}
           >
             Sign In
           </Button>
@@ -41,7 +44,7 @@ export default function Landing() {
             <Button
               size="lg"
               data-testid="button-get-started"
-              onClick={() => window.location.href = '/api/login'}
+              onClick={() => openSignIn()}
             >
               Get Started
               <ArrowRight className="ml-2 h-5 w-5" />

@@ -1,14 +1,281 @@
 import OpenAI from "openai";
+import type { ChatCompletion, ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 import type { JobPostingPayload, CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange, JdSpec, EvaluationCriteria } from "@shared/schema";
 import { cvDocumentSchema, coverLetterSchema, scorecardSchema, recommendationSchema, traceChangeSchema, jdSpecSchema, evaluationCriteriaSchema } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { defaultCvConfig, getWordCountRange, type CvGenerationConfig } from "./cvConfig";
+import { getModelFor, type LlmFunctionality } from "./llmConfig";
 
-// This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
+const effectiveOpenAiApiKey =
+  process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+
+if (!effectiveOpenAiApiKey) {
+  throw new Error(
+    "OPENAI_API_KEY (or AI_INTEGRATIONS_OPENAI_API_KEY) must be set for AI generation.",
+  );
+}
+
 const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+  baseURL: process.env.OPENAI_BASE_URL || process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: effectiveOpenAiApiKey,
 });
+
+type ChatCompletionParams = ChatCompletionCreateParamsNonStreaming;
+
+function isUnsupportedTemperatureError(error: any): boolean {
+  const status = error?.status;
+  const message = String(error?.error?.message || error?.message || "").toLowerCase();
+  return status === 400 && message.includes("unsupported value") && message.includes("temperature");
+}
+
+async function createChatCompletionWithCompatibility(
+  params: ChatCompletionParams,
+  stage: string,
+): Promise<ChatCompletion> {
+  let request: ChatCompletionParams = { ...params };
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await openai.chat.completions.create(request);
+      const text = (response.choices?.[0]?.message?.content || "").trim();
+      const refusal = (response.choices?.[0]?.message as any)?.refusal;
+
+      if (text.length > 0) {
+        return response;
+      }
+
+      if (refusal) {
+        throw new Error(`[${stage}] Model refusal: ${String(refusal)}`);
+      }
+
+      if (request.response_format && attempt < 3) {
+        console.warn(
+          `[${stage}] Empty response content with response_format on model ${String(request.model)}; retrying without response_format.`,
+        );
+        const retryParams: ChatCompletionParams = { ...request };
+        delete (retryParams as any).response_format;
+        request = retryParams;
+        continue;
+      }
+
+      throw new Error(`[${stage}] Empty response content from model ${String(request.model)}.`);
+    } catch (error: any) {
+      if (request.temperature !== undefined && isUnsupportedTemperatureError(error)) {
+        console.warn(
+          `[${stage}] Model ${String(request.model)} rejected custom temperature=${request.temperature}; retrying with default model temperature.`,
+        );
+        const retryParams: ChatCompletionParams = { ...request };
+        delete retryParams.temperature;
+        request = retryParams;
+        continue;
+      }
+      if (attempt < 3) {
+        console.warn(`[${stage}] Request attempt ${attempt} failed: ${String(error?.message || error)}. Retrying...`);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error(`[${stage}] Chat completion failed after compatibility retries.`);
+}
+
+function parseJsonObjectFromText(text: string | null | undefined): any {
+  const content = (text || "").trim();
+  if (!content) return {};
+
+  const fencedJsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedJsonMatch?.[1]) {
+    const fencedContent = fencedJsonMatch[1].trim();
+    try {
+      return JSON.parse(fencedContent);
+    } catch {
+      // Fall through to brace-based extraction.
+    }
+  }
+
+  try {
+    return JSON.parse(content);
+  } catch {
+    const firstBrace = content.indexOf("{");
+    const lastBrace = content.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      const candidate = content.slice(firstBrace, lastBrace + 1);
+      try {
+        return JSON.parse(candidate);
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+}
+
+function buildRetryModels(functionality: LlmFunctionality, modelOverride?: string): string[] {
+  const selectedModel = resolveModel(functionality, modelOverride);
+  const retryCountRaw = Number.parseInt(process.env.LLM_SAME_MODEL_RETRY_COUNT || "3", 10);
+  const retryCount = Number.isFinite(retryCountRaw) ? Math.min(Math.max(retryCountRaw, 1), 6) : 3;
+  return Array.from({ length: retryCount }, () => selectedModel);
+}
+
+function resolveModel(functionality: LlmFunctionality, modelOverride?: string): string {
+  return modelOverride || getModelFor(functionality);
+}
+
+const DEFAULT_MODEL_CATALOG = ["gpt-4o-mini"];
+const MODEL_CATALOG_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours
+
+let modelCatalogCache: string[] = [...DEFAULT_MODEL_CATALOG];
+let modelCatalogLoaded = false;
+let modelCatalogLastRefreshMs = 0;
+let modelCatalogRefreshPromise: Promise<string[]> | null = null;
+
+function isDeprecatedModel(model: any): boolean {
+  const modelId = String(model?.id || "").toLowerCase();
+  const status = String(model?.status || "").toLowerCase();
+  const lifecycle = String(model?.lifecycle || "").toLowerCase();
+  return (
+    model?.deprecated === true ||
+    status === "deprecated" ||
+    lifecycle === "deprecated" ||
+    modelId.includes("deprecated")
+  );
+}
+
+function isSuitableTextGenerationModel(modelId: string): boolean {
+  const id = modelId.toLowerCase();
+
+  // Keep only modern text generation model families suitable for chat completions.
+  if (!(id.startsWith("gpt-") || id.startsWith("o1") || id.startsWith("o3") || id.startsWith("o4") || id.startsWith("o5"))) {
+    return false;
+  }
+
+  // Exclude non-generation/specialized endpoints and legacy families.
+  const excludedTokens = [
+    "audio",
+    "realtime",
+    "transcribe",
+    "tts",
+    "embedding",
+    "moderation",
+    "image",
+    "whisper",
+    "dall-e",
+    "search",
+    "computer-use",
+    "gpt-3.5",
+    "instruct",
+  ];
+
+  return !excludedTokens.some((token) => id.includes(token));
+}
+
+function mergeDefaultModel(models: string[]): string[] {
+  const merged = Array.from(new Set([DEFAULT_MODEL_CATALOG[0], ...models]));
+  return merged.sort((a, b) => a.localeCompare(b));
+}
+
+async function refreshModelCatalog(force = false): Promise<string[]> {
+  const now = Date.now();
+  if (!force && modelCatalogLoaded && now - modelCatalogLastRefreshMs < MODEL_CATALOG_TTL_MS) {
+    return modelCatalogCache;
+  }
+
+  if (modelCatalogRefreshPromise) {
+    return modelCatalogRefreshPromise;
+  }
+
+  modelCatalogRefreshPromise = (async () => {
+    try {
+      const response = await openai.models.list();
+      const candidates = response.data
+        .filter((m: any) => !isDeprecatedModel(m))
+        .map((m: any) => String(m.id))
+        .filter((id) => isSuitableTextGenerationModel(id));
+
+      if (candidates.length > 0) {
+        modelCatalogCache = mergeDefaultModel(candidates);
+      } else {
+        modelCatalogCache = [...DEFAULT_MODEL_CATALOG];
+      }
+
+      modelCatalogLoaded = true;
+      modelCatalogLastRefreshMs = Date.now();
+      return modelCatalogCache;
+    } catch (error) {
+      console.error("Failed to refresh model catalog:", error);
+      modelCatalogLoaded = true;
+      modelCatalogLastRefreshMs = Date.now();
+      modelCatalogCache = [...DEFAULT_MODEL_CATALOG];
+      return modelCatalogCache;
+    } finally {
+      modelCatalogRefreshPromise = null;
+    }
+  })();
+
+  return modelCatalogRefreshPromise;
+}
+
+export async function warmModelCatalog(): Promise<void> {
+  await refreshModelCatalog(true);
+}
+
+export async function listAvailableLlmModels(): Promise<string[]> {
+  if (!modelCatalogLoaded) {
+    return refreshModelCatalog(true);
+  }
+
+  // Serve from memory immediately and refresh in background when stale.
+  void refreshModelCatalog(false);
+  return modelCatalogCache;
+}
+
+export interface TokenUsageSummary {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  byStage: Record<string, number>;
+}
+
+type UsageTracker = TokenUsageSummary;
+
+function createUsageTracker(): UsageTracker {
+  return {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    byStage: {},
+  };
+}
+
+function updateUsage(tracker: UsageTracker | undefined, stage: string, response: any): void {
+  if (!tracker) return;
+  const prompt = response?.usage?.prompt_tokens ?? 0;
+  const completion = response?.usage?.completion_tokens ?? 0;
+  const total = response?.usage?.total_tokens ?? (prompt + completion);
+
+  tracker.promptTokens += prompt;
+  tracker.completionTokens += completion;
+  tracker.totalTokens += total;
+  tracker.byStage[stage] = (tracker.byStage[stage] ?? 0) + total;
+}
+
+function snapshotUsage(tracker: UsageTracker): TokenUsageSummary {
+  return {
+    promptTokens: tracker.promptTokens,
+    completionTokens: tracker.completionTokens,
+    totalTokens: tracker.totalTokens,
+    byStage: { ...tracker.byStage },
+  };
+}
+
+function getRoleTitle(jdSpec: JdSpec): string {
+  return jdSpec.role?.title || "Target Role";
+}
+
+function getCompanyName(jdSpec: JdSpec): string {
+  return jdSpec.company?.name || "Target Company";
+}
 
 /**
  * Auto-repair common validation failures in AI output
@@ -137,7 +404,9 @@ export class AIService {
    * Phase 0: Analyze raw job posting text to extract structured JD spec and evaluation criteria
    */
   async analyzeJobPosting(
-    jobPosting: JobPostingPayload
+    jobPosting: JobPostingPayload,
+    usageTracker?: UsageTracker,
+    modelOverride?: string
   ): Promise<{
     jdSpec: JdSpec;
     evaluationCriteria: EvaluationCriteria;
@@ -295,49 +564,61 @@ RULES:
 - For scope_indicators, ONLY use these keys: team_size, budget, regions, stakeholder_levels
 - Do NOT add unknown or extra fields to any object`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 4096,
-      temperature: 0.3, // Slightly higher than default to encourage extraction over copying examples
-    });
+    const retryModels = buildRetryModels("jdAnalysis", modelOverride);
 
-    let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = await autoRepairAIOutput(result, defaultCvConfig);
-    
-    // Log what was extracted for debugging
-    console.log(`Phase 0 extracted: "${result.jdSpec?.role?.title}" at ${result.jdSpec?.company?.name}`);
-    
-    try {
-      const jdSpec = jdSpecSchema.parse(result.jdSpec);
-      const evaluationCriteria = evaluationCriteriaSchema.parse(result.evaluationCriteria);
-      
-      // Validate weights sum to 100
-      const totalWeight = evaluationCriteria.reduce((sum, c) => sum + c.weight_percent, 0);
-      if (Math.abs(totalWeight - 100) > 0.1) {
-        throw new Error(`Evaluation criteria weights sum to ${totalWeight}, must be 100`);
+    let lastError: any;
+
+    for (let index = 0; index < retryModels.length; index += 1) {
+      const model = retryModels[index];
+      try {
+        if (index > 0) {
+          console.warn(`JD analysis retry ${index}/${retryModels.length - 1} using same model: ${model}`);
+        }
+
+        const response = await createChatCompletionWithCompatibility({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+          temperature: 0.3,
+        }, "jdAnalysis");
+        updateUsage(usageTracker, "jdAnalysis", response);
+
+        let result = parseJsonObjectFromText(response.choices[0]?.message?.content);
+        result = await autoRepairAIOutput(result, defaultCvConfig);
+
+        // Log what was extracted for debugging
+        console.log(`Phase 0 extracted: "${result.jdSpec?.role?.title}" at ${result.jdSpec?.company?.name}`);
+
+        const jdSpec = jdSpecSchema.parse(result.jdSpec);
+        const evaluationCriteria = evaluationCriteriaSchema.parse(result.evaluationCriteria);
+
+        // Validate weights sum to 100
+        const totalWeight = evaluationCriteria.reduce((sum, c) => sum + c.weight_percent, 0);
+        if (Math.abs(totalWeight - 100) > 0.1) {
+          throw new Error(`Evaluation criteria weights sum to ${totalWeight}, must be 100`);
+        }
+
+        return {
+          jdSpec,
+          evaluationCriteria,
+          prompts: { system: systemPrompt, user: userPrompt }
+        };
+      } catch (error: any) {
+        lastError = error;
+        console.error("JD analysis validation failed:", error);
       }
-      
-      return { 
-        jdSpec, 
-        evaluationCriteria,
-        prompts: { system: systemPrompt, user: userPrompt }
-      };
-    } catch (error: any) {
-      console.error("JD analysis validation failed:", error);
-      console.error("Raw AI output:", JSON.stringify(result, null, 2));
-      
-      if (error?.name === "ZodError") {
-        const validationError = fromZodError(error);
-        throw new Error(`JD analysis failed: ${validationError.toString()}`);
-      }
-      
-      throw new Error(`JD analysis error: ${error.message || error}`);
     }
+
+    if (lastError?.name === "ZodError") {
+      const validationError = fromZodError(lastError);
+      throw new Error(`JD analysis failed after same-model retries: ${validationError.toString()}`);
+    }
+
+    throw new Error(`JD analysis failed after same-model retries: ${lastError?.message || lastError}`);
   }
 
   /**
@@ -364,7 +645,9 @@ RULES:
     candidateProfile: string,
     jdSpec: JdSpec,
     evaluationCriteria: EvaluationCriteria,
-    cvConfig: CvGenerationConfig
+    cvConfig: CvGenerationConfig,
+    usageTracker?: UsageTracker,
+    modelOverride?: string
   ): Promise<CvDocument> {
     // Extract expected role count BEFORE sending to AI (authoritative baseline)
     const expectedRoleCount = this.extractExpectedRoleCount(candidateProfile);
@@ -543,7 +826,7 @@ VALIDATE BEFORE RETURN
     const userPrompt = `Generate a tailored CV for this job.
 
 JOB REQUIREMENTS:
-Role: ${jdSpec.role}
+Role: ${getRoleTitle(jdSpec)}
 Must-have: ${jdSpec.must_have.join(', ')}
 Key skills: ${jdSpec.skills.join(', ')}
 Tools: ${jdSpec.tools.join(', ')}
@@ -619,21 +902,34 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
 
 CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is ARRAY with 8-15 items, technical_skills is ARRAY with 20-40 items.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 6144,
-    });
+    const retryModels = buildRetryModels("cvGeneration", modelOverride);
 
-    let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = await autoRepairAIOutput(result, cvConfig);
-    
-    try {
-      const cv = cvDocumentSchema.parse(result);
+    let lastError: any;
+    let lastResult: any = {};
+
+    for (let index = 0; index < retryModels.length; index += 1) {
+      const model = retryModels[index];
+      try {
+        if (index > 0) {
+          console.warn(`CV generation retry ${index}/${retryModels.length - 1} using same model: ${model}`);
+        }
+
+        const response = await createChatCompletionWithCompatibility({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 6144,
+        }, "cvGeneration");
+        updateUsage(usageTracker, "cvGeneration", response);
+
+        let result = parseJsonObjectFromText(response.choices[0]?.message?.content);
+        result = await autoRepairAIOutput(result, cvConfig);
+        lastResult = result;
+
+        const cv = cvDocumentSchema.parse(result);
       
       // Runtime validation: Enforce grounding for new documents
       if (cv.experience && cv.experience.length > 0) {
@@ -713,18 +1009,20 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
         }
       }
       
-      return cv;
-    } catch (error: any) {
-      console.error("CV generation validation failed:", error);
-      console.error("Raw AI output:", JSON.stringify(result, null, 2));
-      
-      if (error?.name === "ZodError") {
-        const validationError = fromZodError(error);
-        throw new Error(`CV generation failed: ${validationError.toString()}`);
+        return cv;
+      } catch (error: any) {
+        lastError = error;
+        console.error("CV generation validation failed:", error);
       }
-      
-      throw new Error(`CV generation error: ${error.message || error}`);
     }
+
+    console.error("Raw AI output:", JSON.stringify(lastResult, null, 2));
+    if (lastError?.name === "ZodError") {
+      const validationError = fromZodError(lastError);
+      throw new Error(`CV generation failed after same-model retries: ${validationError.toString()}`);
+    }
+
+    throw new Error(`CV generation failed after same-model retries: ${lastError?.message || lastError}`);
   }
 
   /**
@@ -732,8 +1030,11 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
    */
   async generateCoverLetter(
     cv: CvDocument,
-    jdSpec: JdSpec
+    jdSpec: JdSpec,
+    usageTracker?: UsageTracker,
+    modelOverride?: string
   ): Promise<CoverLetter> {
+    const currentDateIso = new Date().toISOString().split("T")[0];
     const systemPrompt = `You are a cover letter writer for senior technology leadership roles. Return ONE valid JSON object (the cover letter only).
 
 RULES
@@ -753,8 +1054,8 @@ VALIDATE BEFORE RETURN
     const userPrompt = `Generate a tailored cover letter for this job.
 
 JOB:
-Company: ${jdSpec.company || "Target Company"}
-Role: ${jdSpec.role}
+Company: ${getCompanyName(jdSpec)}
+Role: ${getRoleTitle(jdSpec)}
 Key requirements: ${jdSpec.must_have.slice(0, 5).join(', ')}
 
 CANDIDATE CV SUMMARY:
@@ -772,14 +1073,14 @@ REQUIRED JSON STRUCTURE:
     "city_region": "${cv.header.city_region || ''}"
   },
   "meta": {
-    "date_iso": "2025-10-29",
+    "date_iso": "${currentDateIso}",
     "recipient": {
       "name": "Hiring Manager",
       "title": "Head of Talent Acquisition",
-      "company": "${jdSpec.company || 'Target Company'}",
+      "company": "${getCompanyName(jdSpec)}",
       "address": "${cv.header.city_region || 'London'}"
     },
-    "subject": "Application: ${jdSpec.role}"
+    "subject": "Application: ${getRoleTitle(jdSpec)}"
   },
   "paragraphs": {
     "opening": "Opening paragraph expressing interest...",
@@ -798,73 +1099,87 @@ CRITICAL:
 - Reference only facts from the CV summary above
 - Use UK spelling and formal business tone`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 2048,
-    });
+    const retryModels = buildRetryModels("coverLetterGeneration", modelOverride);
+    let lastError: any;
+    let lastResult: any = {};
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    
-    // Auto-repair: Move sign_off from paragraphs to root level if misplaced
-    if (result.paragraphs?.sign_off && !result.sign_off) {
-      console.log("Auto-repair: Moving sign_off from paragraphs to root level");
-      result.sign_off = result.paragraphs.sign_off;
-      delete result.paragraphs.sign_off;
-    }
-    
-    // Auto-repair: Ensure sign_off exists
-    if (!result.sign_off) {
-      console.log("Auto-repair: Adding missing sign_off");
-      result.sign_off = {
-        closing: "Kind regards",
-        name: cv.header.full_name
-      };
-    }
-    
-    // Auto-repair: Move jd_signals_used/grounding_refs from paragraphs to root
-    if (result.paragraphs?.jd_signals_used && !result.jd_signals_used) {
-      result.jd_signals_used = result.paragraphs.jd_signals_used;
-      delete result.paragraphs.jd_signals_used;
-    }
-    if (result.paragraphs?.grounding_refs && !result.grounding_refs) {
-      result.grounding_refs = result.paragraphs.grounding_refs;
-      delete result.paragraphs.grounding_refs;
-    }
-    
-    // Auto-repair: Fix grounding_refs if they're strings instead of objects
-    if (Array.isArray(result.grounding_refs)) {
-      const validRefs = result.grounding_refs.filter((ref: any) => 
-        typeof ref === 'object' && ref.cv_path && ref.excerpt
-      );
-      
-      // If all refs are invalid (strings), remove the field entirely (it's optional)
-      if (validRefs.length === 0) {
-        console.log("Auto-repair: Removing invalid grounding_refs (all strings, expected objects)");
-        delete result.grounding_refs;
-      } else if (validRefs.length !== result.grounding_refs.length) {
-        console.log(`Auto-repair: Filtered grounding_refs from ${result.grounding_refs.length} to ${validRefs.length} valid items`);
-        result.grounding_refs = validRefs;
+    for (let index = 0; index < retryModels.length; index += 1) {
+      const model = retryModels[index];
+      try {
+        if (index > 0) {
+          console.warn(`Cover letter retry ${index}/${retryModels.length - 1} using same model: ${model}`);
+        }
+
+        const response = await createChatCompletionWithCompatibility({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 2048,
+        }, "coverLetterGeneration");
+        updateUsage(usageTracker, "coverLetterGeneration", response);
+
+        const result = parseJsonObjectFromText(response.choices[0]?.message?.content);
+        lastResult = result;
+
+        // Auto-repair: Move sign_off from paragraphs to root level if misplaced
+        if (result.paragraphs?.sign_off && !result.sign_off) {
+          console.log("Auto-repair: Moving sign_off from paragraphs to root level");
+          result.sign_off = result.paragraphs.sign_off;
+          delete result.paragraphs.sign_off;
+        }
+
+        // Auto-repair: Ensure sign_off exists
+        if (!result.sign_off) {
+          console.log("Auto-repair: Adding missing sign_off");
+          result.sign_off = {
+            closing: "Kind regards",
+            name: cv.header.full_name
+          };
+        }
+
+        // Auto-repair: Move jd_signals_used/grounding_refs from paragraphs to root
+        if (result.paragraphs?.jd_signals_used && !result.jd_signals_used) {
+          result.jd_signals_used = result.paragraphs.jd_signals_used;
+          delete result.paragraphs.jd_signals_used;
+        }
+        if (result.paragraphs?.grounding_refs && !result.grounding_refs) {
+          result.grounding_refs = result.paragraphs.grounding_refs;
+          delete result.paragraphs.grounding_refs;
+        }
+
+        // Auto-repair: Fix grounding_refs if they're strings instead of objects
+        if (Array.isArray(result.grounding_refs)) {
+          const validRefs = result.grounding_refs.filter((ref: any) =>
+            typeof ref === 'object' && ref.cv_path && ref.excerpt
+          );
+
+          // If all refs are invalid (strings), remove the field entirely (it's optional)
+          if (validRefs.length === 0) {
+            console.log("Auto-repair: Removing invalid grounding_refs (all strings, expected objects)");
+            delete result.grounding_refs;
+          } else if (validRefs.length !== result.grounding_refs.length) {
+            console.log(`Auto-repair: Filtered grounding_refs from ${result.grounding_refs.length} to ${validRefs.length} valid items`);
+            result.grounding_refs = validRefs;
+          }
+        }
+
+        return coverLetterSchema.parse(result);
+      } catch (error: any) {
+        lastError = error;
+        console.error("Cover letter generation validation failed:", error);
       }
     }
-    
-    try {
-      return coverLetterSchema.parse(result);
-    } catch (error: any) {
-      console.error("Cover letter generation validation failed:", error);
-      console.error("Raw AI output:", JSON.stringify(result, null, 2));
-      
-      if (error?.name === "ZodError") {
-        const validationError = fromZodError(error);
-        throw new Error(`Cover letter generation failed: ${validationError.toString()}`);
-      }
-      
-      throw new Error(`Cover letter generation error: ${error.message || error}`);
+
+    console.error("Raw AI output:", JSON.stringify(lastResult, null, 2));
+    if (lastError?.name === "ZodError") {
+      const validationError = fromZodError(lastError);
+      throw new Error(`Cover letter generation failed after same-model retries: ${validationError.toString()}`);
     }
+
+    throw new Error(`Cover letter generation failed after same-model retries: ${lastError?.message || lastError}`);
   }
 
   /**
@@ -874,7 +1189,9 @@ CRITICAL:
     cv: CvDocument,
     coverLetter: CoverLetter,
     jdSpec: JdSpec,
-    evaluationCriteria: EvaluationCriteria
+    evaluationCriteria: EvaluationCriteria,
+    usageTracker?: UsageTracker,
+    modelOverride?: string
   ): Promise<{
     scorecard: Scorecard;
     recommendations: Recommendation[];
@@ -902,7 +1219,7 @@ RULES
     const userPrompt = `Analyze this CV against the job requirements.
 
 JOB REQUIREMENTS:
-Role: ${jdSpec.role}
+Role: ${getRoleTitle(jdSpec)}
 Must-have: ${jdSpec.must_have.join(', ')}
 Nice-to-have: ${jdSpec.nice_to_have.join(', ')}
 
@@ -946,49 +1263,63 @@ CRITICAL:
 - Calculate overall_score_1_to_10 as weighted average using evaluation criteria weights
 - Provide 3-8 actionable recommendations with specific target sections`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 4096,
-    });
+    const retryModels = buildRetryModels("applicationAnalysis", modelOverride);
+    let lastError: any;
+    let lastResult: any = {};
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    
-    // Auto-repair: Round decimal scores to integers
-    if (result.scorecard?.scorecard && Array.isArray(result.scorecard.scorecard)) {
-      result.scorecard.scorecard = result.scorecard.scorecard.map((item: any) => {
-        if (typeof item.score_1_to_10 === 'number' && !Number.isInteger(item.score_1_to_10)) {
-          console.log(`Auto-repair: Rounding score ${item.score_1_to_10} to ${Math.round(item.score_1_to_10)}`);
-          return { ...item, score_1_to_10: Math.round(item.score_1_to_10) };
+    for (let index = 0; index < retryModels.length; index += 1) {
+      const model = retryModels[index];
+      try {
+        if (index > 0) {
+          console.warn(`Analysis retry ${index}/${retryModels.length - 1} using same model: ${model}`);
         }
-        return item;
-      });
-    }
-    
-    try {
-      const scorecard = scorecardSchema.parse(result.scorecard);
-      
-      if (!Array.isArray(result.recommendations)) {
-        throw new Error("Recommendations must be an array");
+
+        const response = await createChatCompletionWithCompatibility({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 4096,
+        }, "applicationAnalysis");
+        updateUsage(usageTracker, "applicationAnalysis", response);
+
+        const result = parseJsonObjectFromText(response.choices[0]?.message?.content);
+        lastResult = result;
+
+        // Auto-repair: Round decimal scores to integers
+        if (result.scorecard?.scorecard && Array.isArray(result.scorecard.scorecard)) {
+          result.scorecard.scorecard = result.scorecard.scorecard.map((item: any) => {
+            if (typeof item.score_1_to_10 === 'number' && !Number.isInteger(item.score_1_to_10)) {
+              console.log(`Auto-repair: Rounding score ${item.score_1_to_10} to ${Math.round(item.score_1_to_10)}`);
+              return { ...item, score_1_to_10: Math.round(item.score_1_to_10) };
+            }
+            return item;
+          });
+        }
+
+        const scorecard = scorecardSchema.parse(result.scorecard);
+
+        if (!Array.isArray(result.recommendations)) {
+          throw new Error("Recommendations must be an array");
+        }
+        const recommendations = result.recommendations.map((r: any) => recommendationSchema.parse(r));
+
+        return { scorecard, recommendations };
+      } catch (error: any) {
+        lastError = error;
+        console.error("Analysis generation validation failed:", error);
       }
-      const recommendations = result.recommendations.map((r: any) => recommendationSchema.parse(r));
-      
-      return { scorecard, recommendations };
-    } catch (error: any) {
-      console.error("Analysis generation validation failed:", error);
-      console.error("Raw AI output:", JSON.stringify(result, null, 2));
-      
-      if (error?.name === "ZodError") {
-        const validationError = fromZodError(error);
-        throw new Error(`Analysis generation failed: ${validationError.toString()}`);
-      }
-      
-      throw new Error(`Analysis generation error: ${error.message || error}`);
     }
+
+    console.error("Raw AI output:", JSON.stringify(lastResult, null, 2));
+    if (lastError?.name === "ZodError") {
+      const validationError = fromZodError(lastError);
+      throw new Error(`Analysis generation failed after same-model retries: ${validationError.toString()}`);
+    }
+
+    throw new Error(`Analysis generation failed after same-model retries: ${lastError?.message || lastError}`);
   }
 
   /**
@@ -998,7 +1329,9 @@ CRITICAL:
     candidateProfile: string,
     jdSpec: JdSpec,
     evaluationCriteria: EvaluationCriteria,
-    cvConfig: CvGenerationConfig
+    cvConfig: CvGenerationConfig,
+    usageTracker?: UsageTracker,
+    modelOverride?: string
   ): Promise<{ cv: CvDocument; prompts: { system: string; user: string } }> {
     // Build prompts (identical to generateCV)
     const systemPrompt = `You are an expert CV writer for senior technology leadership roles. Return ONE valid JSON object (the CV only).
@@ -1174,7 +1507,7 @@ VALIDATE BEFORE RETURN
     const userPrompt = `Generate a tailored CV for this job.
 
 JOB REQUIREMENTS:
-Role: ${jdSpec.role}
+Role: ${getRoleTitle(jdSpec)}
 Must-have: ${jdSpec.must_have.join(', ')}
 Key skills: ${jdSpec.skills.join(', ')}
 Tools: ${jdSpec.tools.join(', ')}
@@ -1250,7 +1583,7 @@ REQUIRED JSON STRUCTURE (showing ALL experiences):
 
 CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 95-125 WORDS, key_skills is ARRAY with 8-15 items, technical_skills is ARRAY with 20-40 items.`;
 
-    const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria, cvConfig);
+    const cv = await this.generateCV(candidateProfile, jdSpec, evaluationCriteria, cvConfig, usageTracker, modelOverride);
     return { cv, prompts: { system: systemPrompt, user: userPrompt } };
   }
 
@@ -1259,8 +1592,11 @@ CRITICAL: Return valid JSON only. Ensure dates are numbers, profile_summary is 9
    */
   async generateCoverLetterWithPrompts(
     cv: CvDocument,
-    jdSpec: JdSpec
+    jdSpec: JdSpec,
+    usageTracker?: UsageTracker,
+    modelOverride?: string
   ): Promise<{ coverLetter: CoverLetter; prompts: { system: string; user: string } }> {
+    const currentDateIso = new Date().toISOString().split("T")[0];
     const systemPrompt = `You are a cover letter writer for senior technology leadership roles. Return ONE valid JSON object (the cover letter only).
 
 RULES
@@ -1280,8 +1616,8 @@ VALIDATE BEFORE RETURN
     const userPrompt = `Generate a tailored cover letter for this job.
 
 JOB:
-Company: ${jdSpec.company || "Target Company"}
-Role: ${jdSpec.role}
+Company: ${getCompanyName(jdSpec)}
+Role: ${getRoleTitle(jdSpec)}
 Key requirements: ${jdSpec.must_have.slice(0, 5).join(', ')}
 
 CANDIDATE CV SUMMARY:
@@ -1299,14 +1635,14 @@ REQUIRED JSON STRUCTURE:
     "city_region": "${cv.header.city_region || ''}"
   },
   "meta": {
-    "date_iso": "2025-10-29",
+    "date_iso": "${currentDateIso}",
     "recipient": {
       "name": "Hiring Manager",
       "title": "Head of Talent Acquisition",
-      "company": "${jdSpec.company || 'Target Company'}",
+      "company": "${getCompanyName(jdSpec)}",
       "address": "${cv.header.city_region || 'London'}"
     },
-    "subject": "Application: ${jdSpec.role}"
+    "subject": "Application: ${getRoleTitle(jdSpec)}"
   },
   "paragraphs": {
     "opening": "Opening paragraph expressing interest...",
@@ -1325,7 +1661,7 @@ CRITICAL:
 - Reference only facts from the CV summary above
 - Use UK spelling and formal business tone`;
 
-    const coverLetter = await this.generateCoverLetter(cv, jdSpec);
+    const coverLetter = await this.generateCoverLetter(cv, jdSpec, usageTracker, modelOverride);
     return { coverLetter, prompts: { system: systemPrompt, user: userPrompt } };
   }
 
@@ -1336,7 +1672,9 @@ CRITICAL:
     cv: CvDocument,
     coverLetter: CoverLetter,
     jdSpec: JdSpec,
-    evaluationCriteria: EvaluationCriteria
+    evaluationCriteria: EvaluationCriteria,
+    usageTracker?: UsageTracker,
+    modelOverride?: string
   ): Promise<{ 
     scorecard: Scorecard; 
     recommendations: Recommendation[];
@@ -1365,7 +1703,7 @@ EVALUATION CRITERIA:
 ${criteriaContext}
 
 JOB REQUIREMENTS:
-Role: ${jdSpec.role}
+Role: ${getRoleTitle(jdSpec)}
 Must-have: ${jdSpec.must_have.join(', ')}
 
 CV SUMMARY:
@@ -1401,7 +1739,7 @@ CRITICAL:
 - Scores must be integers 1-10
 - Provide 4-7 actionable recommendations`;
 
-    const { scorecard, recommendations } = await this.generateAnalysis(cv, coverLetter, jdSpec, evaluationCriteria);
+    const { scorecard, recommendations } = await this.generateAnalysis(cv, coverLetter, jdSpec, evaluationCriteria, usageTracker, modelOverride);
     return { scorecard, recommendations, prompts: { system: systemPrompt, user: userPrompt } };
   }
 
@@ -1411,7 +1749,8 @@ CRITICAL:
   async generateDraft(
     candidateProfile: string,
     jobPosting: JobPostingPayload,
-    cvConfig: CvGenerationConfig
+    cvConfig: CvGenerationConfig,
+    modelOverride?: string
   ): Promise<{
     jdSpec: JdSpec;
     evaluationCriteria: EvaluationCriteria;
@@ -1426,23 +1765,25 @@ CRITICAL:
       phase1b_cover_letter: { system: string; user: string };
       phase1c_analysis: { system: string; user: string };
     };
+    tokenUsage: TokenUsageSummary;
   }> {
     // Store all prompts for traceability
     const prompts: any = {};
+    const usageTracker = createUsageTracker();
     
     // Phase 0: Analyze job posting to extract JD spec and evaluation criteria
     console.log("Phase 0: Analyzing job posting...");
-    const { jdSpec, evaluationCriteria, prompts: phase0Prompts } = await this.analyzeJobPosting(jobPosting);
+    const { jdSpec, evaluationCriteria, prompts: phase0Prompts } = await this.analyzeJobPosting(jobPosting, usageTracker, modelOverride);
     prompts.phase0_jd_analysis = phase0Prompts;
     
     // Phase 1A: Generate CV
     console.log("Phase 1A: Generating CV...");
-    const { cv: cvDraft, prompts: phase1aPrompts } = await this.generateCVWithPrompts(candidateProfile, jdSpec, evaluationCriteria, cvConfig);
+    const { cv: cvDraft, prompts: phase1aPrompts } = await this.generateCVWithPrompts(candidateProfile, jdSpec, evaluationCriteria, cvConfig, usageTracker, modelOverride);
     prompts.phase1a_cv = phase1aPrompts;
     
     // Phase 1B: Generate cover letter
     console.log("Phase 1B: Generating cover letter...");
-    const { coverLetter: coverLetterDraft, prompts: phase1bPrompts } = await this.generateCoverLetterWithPrompts(cvDraft, jdSpec);
+    const { coverLetter: coverLetterDraft, prompts: phase1bPrompts } = await this.generateCoverLetterWithPrompts(cvDraft, jdSpec, usageTracker, modelOverride);
     prompts.phase1b_cover_letter = phase1bPrompts;
     
     // Phase 1C: Generate analysis (scorecard + recommendations)
@@ -1451,7 +1792,9 @@ CRITICAL:
       cvDraft,
       coverLetterDraft,
       jdSpec,
-      evaluationCriteria
+      evaluationCriteria,
+      usageTracker,
+      modelOverride
     );
     prompts.phase1c_analysis = phase1cPrompts;
     
@@ -1465,6 +1808,7 @@ CRITICAL:
       recommendations,
       rawCvInput: candidateProfile,
       prompts,
+      tokenUsage: snapshotUsage(usageTracker),
     };
   }
 
@@ -1479,13 +1823,16 @@ CRITICAL:
     jobPosting: JobPostingPayload,
     recommendations: Recommendation[],
     scorecardPhase1: Scorecard,
-    cvConfig: CvGenerationConfig
+    cvConfig: CvGenerationConfig,
+    modelOverride?: string
   ): Promise<{
     cvFinal: CvDocument;
     coverLetterFinal: CoverLetter;
     scorecardFinal: Scorecard;
     addedPoints: TraceChange[];
+    tokenUsage: TokenUsageSummary;
   }> {
+    const usageTracker = createUsageTracker();
     const systemPrompt = `You refine CV and cover-letter JSON from Pass 1 using explicit recommendations. Return ONE valid JSON object only.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1551,8 +1898,8 @@ OUTPUT SHAPE
     const userPrompt = `Refine these documents by applying recommendations. Preserve truthfulness.
 
 JOB CONTEXT:
-Role: ${jdSpec.role}
-Company: ${jdSpec.company || 'Not specified'}
+Role: ${getRoleTitle(jdSpec)}
+Company: ${getCompanyName(jdSpec)}
 Must-have skills: ${jdSpec.must_have.slice(0, 5).join(', ')}
 Key tools: ${jdSpec.tools.slice(0, 5).join(', ')}
 
@@ -1572,24 +1919,36 @@ ${JSON.stringify(recommendations)}
 
 TASK: Apply the recommendations above to improve the CV and cover letter. Then re-score using the SAME evaluation criteria. Since you are evaluating improvements YOU recommended, scores should increase where improvements were applied. Return refined JSON with addedPoints tracking changes. Calculate overall_score_1_to_10 as weighted average using evaluation criteria weights above.`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Using gpt-4o-mini for cost-effective testing; can upgrade to gpt-4o or gpt-5 later
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 8192,
-    });
+    const retryModels = buildRetryModels("optimization", modelOverride);
+    let lastError: any;
+    let lastResult: any = {};
 
-    let result = JSON.parse(response.choices[0].message.content || "{}");
-    result = await autoRepairAIOutput(result, cvConfig);
-    
-    // Validate AI output against schemas before returning
-    try {
-      const cvFinal = cvDocumentSchema.parse(result.cv);
-      const coverLetterFinal = coverLetterSchema.parse(result.coverLetter);
-      const scorecardFinal = scorecardSchema.parse(result.scorecard);
+    for (let index = 0; index < retryModels.length; index += 1) {
+      const model = retryModels[index];
+      try {
+        if (index > 0) {
+          console.warn(`Optimization retry ${index}/${retryModels.length - 1} using same model: ${model}`);
+        }
+
+        const response = await createChatCompletionWithCompatibility({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          max_completion_tokens: 8192,
+        }, "optimization");
+        updateUsage(usageTracker, "optimization", response);
+
+        let result = parseJsonObjectFromText(response.choices[0]?.message?.content);
+        result = await autoRepairAIOutput(result, cvConfig);
+        lastResult = result;
+
+        // Validate AI output against schemas before returning
+        const cvFinal = cvDocumentSchema.parse(result.cv);
+        const coverLetterFinal = coverLetterSchema.parse(result.coverLetter);
+        const scorecardFinal = scorecardSchema.parse(result.scorecard);
       
       // Runtime validation: Enforce grounding for optimized documents
       if (cvFinal.experience && cvFinal.experience.length > 0) {
@@ -1612,31 +1971,32 @@ TASK: Apply the recommendations above to improve the CV and cover letter. Then r
         throw new Error(`Optimized profile summary has ${wordCount} words, must be 95-125 words`);
       }
       
-      // Safely validate addedPoints array
-      if (!Array.isArray(result.addedPoints) && result.addedPoints !== undefined) {
-        throw new Error("AI output addedPoints must be an array or undefined");
+        // Safely validate addedPoints array
+        if (!Array.isArray(result.addedPoints) && result.addedPoints !== undefined) {
+          throw new Error("AI output addedPoints must be an array or undefined");
+        }
+        const addedPoints = (result.addedPoints || []).map((p: any) => traceChangeSchema.parse(p));
+
+        return {
+          cvFinal,
+          coverLetterFinal,
+          scorecardFinal,
+          addedPoints,
+          tokenUsage: snapshotUsage(usageTracker),
+        };
+      } catch (error: any) {
+        lastError = error;
+        console.error("AI output validation failed:", error);
       }
-      const addedPoints = (result.addedPoints || []).map((p: any) => traceChangeSchema.parse(p));
-      
-      return {
-        cvFinal,
-        coverLetterFinal,
-        scorecardFinal,
-        addedPoints,
-      };
-    } catch (error: any) {
-      console.error("AI output validation failed:", error);
-      console.error("Raw AI output:", JSON.stringify(result, null, 2));
-      
-      // Only use fromZodError for actual ZodErrors
-      if (error?.name === "ZodError") {
-        const validationError = fromZodError(error);
-        throw new Error(`AI generated invalid output: ${validationError.toString()}`);
-      }
-      
-      // Re-throw other errors as-is with context
-      throw new Error(`AI generation error: ${error.message || error}`);
     }
+
+    console.error("Raw AI output:", JSON.stringify(lastResult, null, 2));
+    if (lastError?.name === "ZodError") {
+      const validationError = fromZodError(lastError);
+      throw new Error(`AI generated invalid output after same-model retries: ${validationError.toString()}`);
+    }
+
+    throw new Error(`AI generation failed after same-model retries: ${lastError?.message || lastError}`);
   }
 }
 

@@ -1,18 +1,12 @@
 import puppeteer from "puppeteer";
 import type { JobPosting } from "@shared/schema";
-import { execSync } from "child_process";
+import { resolveBrowserExecutablePath } from "./browser";
 
 export class ScraperService {
-  private chromiumPath: string;
+  private chromiumPath?: string;
 
   constructor() {
-    try {
-      this.chromiumPath = execSync('which chromium', { encoding: 'utf-8' }).trim();
-      console.log(`Found Chromium at: ${this.chromiumPath}`);
-    } catch (error) {
-      console.error('Failed to find Chromium, will use default Puppeteer browser');
-      this.chromiumPath = '';
-    }
+    this.chromiumPath = resolveBrowserExecutablePath();
   }
   /**
    * Scrape raw text content from a job posting URL

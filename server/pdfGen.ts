@@ -1,7 +1,7 @@
 import puppeteer from "puppeteer";
 import type { CvDocument, CoverLetter, TraceChange } from "@shared/schema";
-import { execSync } from "child_process";
 import { PDFDocument } from "pdf-lib";
+import { resolveBrowserExecutablePath } from "./browser";
 
 export class PDFGenerationService {
   /**
@@ -37,21 +37,7 @@ export class PDFGenerationService {
    * Get the Chromium executable path for Puppeteer
    */
   private getChromiumPath(): string {
-    try {
-      // Try to find chromium in the system
-      const chromiumPath = execSync("which chromium || which chromium-browser || which chrome || find /nix/store -name chromium -type f 2>/dev/null | head -1", {
-        encoding: "utf-8",
-      }).trim();
-      
-      if (chromiumPath) {
-        return chromiumPath;
-      }
-    } catch (error) {
-      console.warn("Could not find Chromium path, Puppeteer will use default");
-    }
-    
-    // Return undefined to let Puppeteer use its default
-    return "";
+    return resolveBrowserExecutablePath() || "";
   }
 
   /**

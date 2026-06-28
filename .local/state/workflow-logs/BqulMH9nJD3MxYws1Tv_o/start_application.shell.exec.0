@@ -1,0 +1,69 @@
+[1G[0K⠙[1G[0K
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+[1G[0K⠙[1G[0KFound Chromium at: /nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium
+3:38:12 PM [express] serving on port 5000
+Browserslist: browsers data (caniuse-lite) is 20 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+3:38:17 PM [express] GET /api/auth/user 401 in 1ms :: {"message":"Unauthorized"}
+3:38:23 PM [express] GET /api/login 302 in 24ms
+3:38:33 PM [express] GET /api/callback 302 in 196ms
+3:38:34 PM [express] GET /api/auth/user 200 in 10ms :: {"id":"40388771","email":"reachanilsuj1@gmail…
+3:38:34 PM [express] GET /api/candidates 200 in 13ms :: [{"id":"d2a0b0f5-d2b1-4f78-a372-3df828691685…
+3:38:34 PM [express] GET /api/runs 200 in 33ms :: [{"id":"299e4733-5c6d-4179-b29d-630719e35194","use…
+3:39:01 PM [express] POST /api/runs 200 in 101ms :: {"id":"3201d95d-9b7c-401d-8e65-c2757d776f97","us…
+Sending to AI: candidateProfile length = 23787 chars, ~5947 tokens
+Phase 0: Analyzing job posting...
+3:39:02 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 200 in 47ms :: {"id":"3201d9…
+3:39:05 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 19ms :: {"id":"3201d9…
+3:39:07 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 14ms :: {"id":"3201d9…
+3:39:09 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 17ms :: {"id":"3201d9…
+3:39:11 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 15ms :: {"id":"3201d9…
+3:39:13 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 16ms :: {"id":"3201d9…
+Phase 0 extracted: "Senior Technical Program Manager, Customer Engagement, Applied AI" at Google
+Phase 1A: Generating CV...
+Candidate profile analysis: detected 4 role(s) in career history
+3:40:37 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 297ms :: {"id":"3201d…
+3:40:39 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 14ms :: {"id":"3201d9…
+3:40:41 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 16ms :: {"id":"3201d9…
+3:40:44 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 13ms :: {"id":"3201d9…
+3:40:46 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 22ms :: {"id":"3201d9…
+3:40:48 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 16ms :: {"id":"3201d9…
+Auto-repair: Expanding profile_summary from 84 to 95+ words (adding ~11 words)
+Auto-repair: profile_summary expanded to 101 words
+WARNING: AI did not provide criteria_coverage mapping
+Phase 1B: Generating cover letter...
+Auto-repair: Removing invalid grounding_refs (all strings, expected objects)
+Phase 1C: Generating analysis...
+Draft generation complete!
+Saving draft to database...
+Draft data structure: { hasRawCvInput: [33mtrue[39m, hasPrompts: [33mtrue[39m, hasJdSpec: [33mtrue[39m, hasCv: [33mtrue[39m }
+Draft saved successfully!
+3:41:26 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 200 in 83ms :: {"id":"3201d9…
+3:41:29 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 20ms :: {"id":"3201d9…
+3:41:31 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 20ms :: {"id":"3201d9…
+3:41:33 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 22ms :: {"id":"3201d9…
+3:41:35 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 21ms :: {"id":"3201d9…
+3:41:37 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 18ms :: {"id":"3201d9…
+3:41:39 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 52ms :: {"id":"3201d9…
+3:41:41 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 17ms :: {"id":"3201d9…
+3:41:44 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 15ms :: {"id":"3201d9…
+3:41:46 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 18ms :: {"id":"3201d9…
+Auto-repair: Expanding profile_summary from 91 to 95+ words (adding ~4 words)
+Auto-repair: profile_summary expanded to 97 words
+✅ Phase 2 optimization improved score by +1.00 points (8.5 → 9.5)
+3:41:48 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 200 in 34ms :: {"id":"3201d9…
+3:41:50 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 22ms :: {"id":"3201d9…
+3:41:52 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 23ms :: {"id":"3201d9…
+3:41:55 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 111ms :: {"id":"3201d…
+3:41:57 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 94ms :: {"id":"3201d9…
+3:41:59 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 18ms :: {"id":"3201d9…
+Object storage upload failed for run 3201d95d-9b7c-401d-8e65-c2757d776f97, falling back to database storage: getaddrinfo ENOTFOUND replit-objstore-1df69f26-64fd-4ca6-8613-d38fa08a75a7.s3.auto.amazonaws.com
+Documents stored in database (bytea) for run 3201d95d-9b7c-401d-8e65-c2757d776f97
+3:42:01 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 200 in 35ms :: {"id":"3201d9…
+3:42:36 PM [express] GET /api/auth/user 304 in 39ms :: {"id":"40388771","email":"reachanilsuj1@gmail…
+3:42:36 PM [express] GET /api/runs/3201d95d-9b7c-401d-8e65-c2757d776f97 304 in 100ms :: {"id":"3201d…

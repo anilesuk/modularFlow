@@ -85,6 +85,7 @@ export const runs = pgTable("runs", {
   idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull().unique(),
   status: varchar("status", { length: 50 }).notNull(), // QUEUED, SCRAPING, DRAFT_PASS1, OPTIMIZING_PASS2, VALIDATED, RENDERING, COMPLETED, FAILED
   errorMessage: text("error_message"),
+  totalTokens: integer("total_tokens").notNull().default(0),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

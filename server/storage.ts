@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import * as schema from "@shared/schema";
 import type {
@@ -125,7 +125,7 @@ export class DatabaseStorage implements IStorage {
 
   // Runs
   async getRunsByUserId(userId: string): Promise<Run[]> {
-    return db.select().from(schema.runs).where(eq(schema.runs.userId, userId)).orderBy(schema.runs.createdAt);
+    return db.select().from(schema.runs).where(eq(schema.runs.userId, userId)).orderBy(desc(schema.runs.createdAt));
   }
 
   async getRunById(id: string): Promise<Run | undefined> {
@@ -199,7 +199,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getArtifactById(id: string): Promise<Artifact | undefined> {
-    const artifacts = await db.select().from(schema.artifacts).where(eq(schema.artifacts.id, id));
+    const artifacts = await db.select().from(schema.artifacts).where(eq(schema.artifacts.runId, id));
     return artifacts[0];
   }
 

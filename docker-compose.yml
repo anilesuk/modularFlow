@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: modularflow_db
+    environment:
+      POSTGRES_DB: modularflow_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
+
+# Usage:
+# docker-compose up -d          (start)
+# docker-compose down           (stop)
+# docker-compose logs -f        (view logs)
+# psql -h localhost -U postgres (connect to DB)

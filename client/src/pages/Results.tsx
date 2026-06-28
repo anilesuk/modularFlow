@@ -132,9 +132,11 @@ export default function Results() {
   const scorecardPass1 = draft?.scorecardPass1Jsonb as unknown as Scorecard | undefined;
   const scorecardPass2 = final?.scorecardPass2Jsonb as unknown as Scorecard | undefined;
   const addedPoints = final?.addedPointsJsonb as unknown as TraceChange[] | undefined;
+  const pass1Items = scorecardPass1?.scorecard ?? [];
+  const pass2Items = scorecardPass2?.scorecard ?? [];
 
-  const avgScorePass1 = scorecardPass1?.scorecard?.reduce((sum, item) => sum + item.score_1_to_10, 0) / (scorecardPass1?.scorecard?.length || 1) || 0;
-  const avgScorePass2 = scorecardPass2?.scorecard?.reduce((sum, item) => sum + item.score_1_to_10, 0) / (scorecardPass2?.scorecard?.length || 1) || 0;
+  const avgScorePass1 = pass1Items.reduce((sum, item) => sum + item.score_1_to_10, 0) / (pass1Items.length || 1);
+  const avgScorePass2 = pass2Items.reduce((sum, item) => sum + item.score_1_to_10, 0) / (pass2Items.length || 1);
 
   return (
     <div className="min-h-screen bg-background">
@@ -191,7 +193,7 @@ export default function Results() {
 
         {/* Score Improvement */}
         <Card className="p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <div className="text-sm text-muted-foreground mb-2">Pass 1 Score</div>
               <div className="text-3xl font-semibold" data-testid="score-pass1">
@@ -211,6 +213,12 @@ export default function Results() {
                 <span className="text-3xl font-semibold text-green-600" data-testid="score-improvement">
                   +{((avgScorePass2 || 0) - (avgScorePass1 || 0)).toFixed(1)}
                 </span>
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-muted-foreground mb-2">Total Tokens Used</div>
+              <div className="text-3xl font-semibold" data-testid="tokens-used">
+                {run.totalTokens?.toLocaleString() || 0}
               </div>
             </div>
           </div>

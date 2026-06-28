@@ -318,7 +318,7 @@ export default function Profile() {
                       <FormItem>
                         <FormLabel>Phone (Optional)</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-phone" />
+                          <Input {...field} value={field.value ?? ""} data-testid="input-phone" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -332,7 +332,7 @@ export default function Profile() {
                       <FormItem>
                         <FormLabel>City/Region (Optional)</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-city" />
+                          <Input {...field} value={field.value ?? ""} data-testid="input-city" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -347,7 +347,7 @@ export default function Profile() {
                     <FormItem>
                       <FormLabel>LinkedIn URL (Optional)</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid="input-linkedin" />
+                        <Input {...field} value={field.value ?? ""} data-testid="input-linkedin" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -7,17 +7,16 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "stream";
 
-// Initialize S3 client for Replit Object Storage
+// Initialize S3 client for AWS S3
 const s3Client = new S3Client({
-  region: "auto",
-  endpoint: process.env.OBJECT_STORAGE_ENDPOINT || "",
+  region: process.env.AWS_REGION || "eu-west-2",
   credentials: {
-    accessKeyId: process.env.OBJECT_STORAGE_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.OBJECT_STORAGE_SECRET_ACCESS_KEY || "",
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
   },
 });
 
-const bucketName = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID || "";
+const bucketName = process.env.AWS_S3_BUCKET || "";
 
 export interface UploadOptions {
   key: string;
@@ -95,7 +94,7 @@ export class ObjectStorageService {
    */
   generateStoragePath(userId: string, runId: string, documentType: string): string {
     const timestamp = Date.now();
-    return `.private/${userId}/${runId}/${documentType}_${timestamp}.pdf`;
+    return `users/${userId}/${runId}/${documentType}_${timestamp}.pdf`;
   }
 }
 

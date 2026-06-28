@@ -22,6 +22,7 @@ const submitSchema = z.object({
   inputType: z.enum(["url", "manual"]).default("url"),
   jobPostUrl: z.string().optional(),
   manualJd: z.string().optional(),
+  selectedModel: z.string().min(1, "Please select a model").default("gpt-4o-mini"),
 }).refine(
   (data) => {
     if (data.inputType === "url") {
@@ -47,6 +48,12 @@ export default function SubmitJob() {
     queryKey: ["/api/candidates"] 
   });
 
+  const { data: availableModels = [], isLoading: modelsLoading } = useQuery<string[]>({
+    queryKey: ["/api/llm/models"],
+  });
+
+  const modelOptions = Array.from(new Set(["gpt-4o-mini", ...availableModels]));
+
   const form = useForm<SubmitForm>({
     resolver: zodResolver(submitSchema),
     defaultValues: {
@@ -54,6 +61,7 @@ export default function SubmitJob() {
       inputType: "url",
       jobPostUrl: "",
       manualJd: "",
+      selectedModel: "gpt-4o-mini",
     },
   });
 
@@ -275,6 +283,35 @@ export default function SubmitJob() {
                   )}
                 />
               )}
+
+              <FormField
+                control={form.control}
+                name="selectedModel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>LLM Model</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-llm-model">
+                          <SelectValue placeholder="Select model" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {modelOptions.map((modelId) => (
+                          <SelectItem key={modelId} value={modelId}>
+                            {modelId}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Default is gpt-4o-mini. Models are loaded from the API key configured on the server.
+                      {modelsLoading ? " Loading available models..." : ""}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex items-center space-x-4 pt-4">
                 <Button

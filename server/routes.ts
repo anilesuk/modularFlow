@@ -1,9 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { isAuthenticated } from "./replitAuth";
+import { isAuthenticated } from "./clerkAuth";
 import { scraper } from "./scraper";
-import { aiService } from "./ai";
+import { aiService, listAvailableLlmModels } from "./ai";
 import { docGen } from "./docGen";
 import { pdfGenService } from "./pdfGen";
 import { objectStorage } from "./objectStorage";
@@ -11,6 +11,8 @@ import { objectAcl } from "./objectAcl";
 import { insertCandidateSchema, insertRunSchema } from "@shared/schema";
 import type { CvDocument, CoverLetter, Scorecard, Recommendation, TraceChange } from "@shared/schema";
 import { cvGenerationConfigSchema, getCvConfig, type CvGenerationConfig } from "./cvConfig";
+
+const getUserId = (req: any) => req.user.claims.sub as string;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ===== AUTH =====
@@ -42,10 +44,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific candidate
-  app.get("/api/candidates/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/candidates/:id", isAuthenticated, async (req: any, res) => {
     try {
       const candidate = await storage.getCandidateById(req.params.id);
-      if (!candidate || candidate.userId !== req.user.claims.sub) {
+      if (!candidate || candidate.userId !== getUserId(req)) {
         return res.status(404).json({ error: "Candidate not found" });
       }
       res.json(candidate);
@@ -56,21 +58,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new candidate
-  app.post("/api/candidates", isAuthenticated, async (req, res) => {
+  app.post("/api/candidates", isAuthenticated, async (req: any, res) => {
     try {
-      const validated = insertCandidateSchema.omit({ id: true }).parse({
+      const validated = insertCandidateSchema.parse({
         ...req.body,
-        userId: req.user.claims.sub,
+        userId: getUserId(req),
       });
 
       const candidate = await storage.createCandidate(validated);
       
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: getUserId(req),
         action: "CANDIDATE_CREATED",
         resourceType: "candidate",
         resourceId: candidate.id,
-        details: { name: candidate.fullName },
+        metadata: { name: candidate.fullName },
       });
 
       res.json(candidate);
@@ -84,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/candidates/:id", isAuthenticated, async (req: any, res) => {
     try {
       const existing = await storage.getCandidateById(req.params.id);
-      if (!existing || existing.userId !== req.user.claims.sub) {
+      if (!existing || existing.userId !== getUserId(req)) {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
@@ -104,11 +106,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateCandidate(req.params.id, allowedUpdates);
       
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: getUserId(req),
         action: "CANDIDATE_UPDATED",
         resourceType: "candidate",
         resourceId: updated.id,
-        details: { changes: allowedUpdates },
+        metadata: { changes: allowedUpdates },
       });
 
       res.json(updated);
@@ -119,21 +121,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a candidate
-  app.delete("/api/candidates/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/candidates/:id", isAuthenticated, async (req: any, res) => {
     try {
       const candidate = await storage.getCandidateById(req.params.id);
-      if (!candidate || candidate.userId !== req.user.claims.sub) {
+      if (!candidate || candidate.userId !== getUserId(req)) {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
       await storage.deleteCandidate(req.params.id);
       
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: getUserId(req),
         action: "CANDIDATE_DELETED",
         resourceType: "candidate",
         resourceId: req.params.id,
-        details: { name: candidate.fullName },
+        metadata: { name: candidate.fullName },
       });
 
       res.json({ success: true });
@@ -144,10 +146,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get CV preferences for a candidate
-  app.get("/api/candidates/:id/cv-preferences", isAuthenticated, async (req, res) => {
+  app.get("/api/candidates/:id/cv-preferences", isAuthenticated, async (req: any, res) => {
     try {
       const candidate = await storage.getCandidateById(req.params.id);
-      if (!candidate || candidate.userId !== req.user.claims.sub) {
+      if (!candidate || candidate.userId !== getUserId(req)) {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
@@ -165,10 +167,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update CV preferences for a candidate
-  app.put("/api/candidates/:id/cv-preferences", isAuthenticated, async (req, res) => {
+  app.put("/api/candidates/:id/cv-preferences", isAuthenticated, async (req: any, res) => {
     try {
       const candidate = await storage.getCandidateById(req.params.id);
-      if (!candidate || candidate.userId !== req.user.claims.sub) {
+      if (!candidate || candidate.userId !== getUserId(req)) {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
@@ -190,11 +192,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: getUserId(req),
         action: "CV_PREFERENCES_UPDATED",
         resourceType: "candidate",
         resourceId: candidate.id,
-        details: { preferences },
+        metadata: { preferences },
       });
 
       res.json({ success: true, preferences });
@@ -207,10 +209,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== RUNS (JOB APPLICATIONS) =====
 
   // Get all runs for current user
-  app.get("/api/runs", isAuthenticated, async (req, res) => {
+  app.get("/api/runs", isAuthenticated, async (req: any, res) => {
     try {
-      const runs = await storage.getRunsByUserId(req.user.claims.sub);
-      res.json(runs);
+      const runs = await storage.getRunsByUserId(getUserId(req));
+
+      const enrichedRuns = await Promise.all(
+        runs.map(async (run) => {
+          const draft = await storage.getDraftByRunId(run.id);
+          const jdSpec = (draft?.jdSpecJsonb as any) || {};
+
+          return {
+            ...run,
+            companyName: jdSpec?.company?.name ?? null,
+            roleTitle: jdSpec?.role?.title ?? null,
+            roleLocation: jdSpec?.role?.location ?? null,
+          };
+        })
+      );
+
+      res.json(enrichedRuns);
     } catch (error) {
       console.error("Error fetching runs:", error);
       res.status(500).json({ error: "Failed to fetch runs" });
@@ -218,17 +235,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a specific run with all related data
-  app.get("/api/runs/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/runs/:id", isAuthenticated, async (req: any, res) => {
     try {
       const run = await storage.getRunById(req.params.id);
-      if (!run || run.userId !== req.user.claims.sub) {
+      if (!run || run.userId !== getUserId(req)) {
         return res.status(404).json({ error: "Run not found" });
       }
 
       // Fetch related data
       const [candidate, jobPosting, draft, final, artifact] = await Promise.all([
         storage.getCandidateById(run.candidateId),
-        storage.getJobPostingById(run.jobPostingId),
+        run.jobPostingId ? storage.getJobPostingById(run.jobPostingId) : Promise.resolve(undefined),
         storage.getDraftByRunId(run.id),
         storage.getFinalByRunId(run.id),
         storage.getArtifactByRunId(run.id),
@@ -249,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Validate job posting URL
-  app.get("/api/validate-url", isAuthenticated, async (req, res) => {
+  app.get("/api/validate-url", isAuthenticated, async (req: any, res) => {
     try {
       const url = req.query.url as string;
       if (!url) {
@@ -272,10 +289,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit a new job application for processing
-  app.post("/api/runs", isAuthenticated, async (req, res) => {
+  // Get available LLM models for UI selection
+  app.get("/api/llm/models", isAuthenticated, async (_req: any, res) => {
     try {
-      const { candidateId, jobPostUrl, manualJd, inputType } = req.body;
+      const models = await listAvailableLlmModels();
+      res.json(models);
+    } catch (error) {
+      console.error("Error fetching available LLM models:", error);
+      res.status(500).json({ error: "Failed to fetch LLM models" });
+    }
+  });
+
+  // Submit a new job application for processing
+  app.post("/api/runs", isAuthenticated, async (req: any, res) => {
+    try {
+      const { candidateId, jobPostUrl, manualJd, inputType, selectedModel } = req.body;
+      const normalizedSelectedModel =
+        typeof selectedModel === "string" && selectedModel.trim().length > 0
+          ? selectedModel.trim()
+          : undefined;
 
       // Validate that either jobPostUrl or manualJd is provided
       if (inputType === "url" && !jobPostUrl) {
@@ -287,16 +319,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate candidate ownership
       const candidate = await storage.getCandidateById(candidateId);
-      if (!candidate || candidate.userId !== req.user.claims.sub) {
+      if (!candidate || candidate.userId !== getUserId(req)) {
         return res.status(404).json({ error: "Candidate not found" });
       }
 
       // Generate idempotency key
-      const idempotencyKey = `${req.user.claims.sub}-${candidateId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const idempotencyKey = `${getUserId(req)}-${candidateId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
       // Create run with QUEUED status
       const run = await storage.createRun({
-        userId: req.user.claims.sub,
+        userId: getUserId(req),
         candidateId,
         jobPostUrl: jobPostUrl || null,
         manualJd: manualJd || null,
@@ -305,15 +337,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: getUserId(req),
         action: "RUN_CREATED",
         resourceType: "run",
         resourceId: run.id,
-        details: { candidateId, jobPostUrl, manualJd: manualJd ? "provided" : null },
+        metadata: {
+          candidateId,
+          jobPostUrl,
+          manualJd: manualJd ? "provided" : null,
+          selectedModel: normalizedSelectedModel || null,
+        },
       });
 
       // Start async processing (non-blocking)
-      processJobApplication(run.id, candidate, jobPostUrl, manualJd, req.user.claims.sub).catch(error => {
+      processJobApplication(run.id, candidate, jobPostUrl, manualJd, getUserId(req), normalizedSelectedModel).catch(error => {
         console.error("Processing error:", error);
         storage.updateRunStatus(run.id, "FAILED", error.message);
       });
@@ -343,7 +380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify run ownership
       const run = await storage.getRunById(artifact.runId);
-      if (!run || run.userId !== req.user.claims.sub) {
+      if (!run || run.userId !== getUserId(req)) {
         return res.status(403).json({ error: "Access denied" });
       }
 
@@ -368,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Verify ACL access
-        if (!objectAcl.canAccess(req.user.claims.sub, storagePath)) {
+        if (!objectAcl.canAccess(getUserId(req), storagePath)) {
           return res.status(403).json({ error: "Access denied" });
         }
 
@@ -425,9 +462,12 @@ async function processJobApplication(
   candidate: any,
   jobPostingUrl: string | null | undefined,
   manualJd: string | null | undefined,
-  userId: string
+  userId: string,
+  selectedModel?: string
 ) {
   try {
+    let totalTokensUsed = 0;
+
     // Load CV config once per run to avoid multiple DB queries
     const cvConfig = await getCvConfig(candidate.id);
     
@@ -505,7 +545,9 @@ ${cvContent}
     
     console.log(`Sending to AI: candidateProfile length = ${candidateProfile.length} chars, ~${Math.ceil(candidateProfile.length / 4)} tokens`);
     
-    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any, cvConfig);
+    const draftResult = await aiService.generateDraft(candidateProfile, jobPosting.payload as any, cvConfig, selectedModel);
+    totalTokensUsed += draftResult.tokenUsage.totalTokens;
+    await storage.updateRun(runId, { totalTokens: totalTokensUsed });
 
     console.log("Saving draft to database...");
     console.log("Draft data structure:", {
@@ -543,8 +585,11 @@ ${cvContent}
       jobPosting.payload as any,
       draftResult.recommendations,
       draftResult.scorecard, // Pass Phase 1 baseline scorecard for comparison
-      cvConfig
+      cvConfig,
+      selectedModel
     );
+    totalTokensUsed += optimizedResult.tokenUsage.totalTokens;
+    await storage.updateRun(runId, { totalTokens: totalTokensUsed });
 
     // Validate that optimization improved (or maintained) the score
     const phase1Score = draftResult.scorecard.overall_score_1_to_10;
@@ -655,7 +700,7 @@ ${cvContent}
         action: "RENDERING_FAILED",
         resourceType: "run",
         resourceId: runId,
-        details: { error: renderError.message },
+        metadata: { error: renderError.message },
       });
       
       // Return early - run is still considered successful
@@ -670,7 +715,7 @@ ${cvContent}
       action: "RUN_COMPLETED",
       resourceType: "run",
       resourceId: runId,
-      details: { jobPostingId: jobPosting.id },
+      metadata: { jobPostingId: jobPosting.runId },
     });
   } catch (error: any) {
     console.error(`Processing error for run ${runId}:`, error);
@@ -681,7 +726,7 @@ ${cvContent}
       action: "RUN_FAILED",
       resourceType: "run",
       resourceId: runId,
-      details: { error: error.message },
+      metadata: { error: error.message },
     });
   }
 }

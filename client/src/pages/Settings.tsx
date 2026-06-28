@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useClerk } from "@clerk/clerk-react";
 import { Settings as SettingsIcon, User, Lock, Bell, Shield } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function Settings() {
   const { user } = useAuth();
+  const { signOut } = useClerk();
   const { toast } = useToast();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [securityAlerts, setSecurityAlerts] = useState(true);
@@ -186,7 +188,7 @@ export default function Settings() {
                   <div className="pt-4">
                     <Button
                       variant="outline"
-                      onClick={() => window.location.href = '/api/logout'}
+                      onClick={() => void signOut()}
                       data-testid="button-sign-out"
                     >
                       <Lock className="h-4 w-4 mr-2" />
